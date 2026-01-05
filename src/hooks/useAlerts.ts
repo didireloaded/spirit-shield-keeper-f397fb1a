@@ -144,12 +144,26 @@ export const useAlerts = () => {
     return { error };
   };
 
+  const getStatusBadge = (status: string): { label: string; variant: 'destructive' | 'success' | 'muted' } => {
+    switch (status) {
+      case 'active':
+        return { label: 'Active', variant: 'destructive' };
+      case 'resolved':
+        return { label: 'Resolved', variant: 'success' };
+      case 'cancelled':
+        return { label: 'Cancelled', variant: 'muted' };
+      default:
+        return { label: status, variant: 'muted' };
+    }
+  };
+
   return {
     alerts,
     loading,
     createAlert,
     resolveAlert,
     cancelAlert,
+    getStatusBadge,
     refetch: fetchAlerts,
   };
 };
