@@ -14,7 +14,6 @@ import Authorities from "./pages/Authorities";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import Watchers from "./pages/Watchers";
-import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,12 +27,11 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/onboarding" element={<Onboarding />} />
             <Route
               path="/"
               element={
                 <ProtectedRoute>
-                  <Index />
+                  <Alerts />
                 </ProtectedRoute>
               }
             />
@@ -70,14 +68,6 @@ const App = () => (
               }
             />
             <Route
-              path="/chat"
-              element={
-                <ProtectedRoute>
-                  <Chat />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/messages"
               element={
                 <ProtectedRoute>
@@ -101,6 +91,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
