@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, Shield, Mic, X, Camera, Car } from "lucide-react";
+import { AlertTriangle, Shield, Mic, X, Camera, Car, Activity, Clock, Radio, ChevronDown, Lightbulb } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { MiniMap } from "@/components/MiniMap";
 import { AlertDetailsModal } from "@/components/AlertDetailsModal";
@@ -11,6 +11,7 @@ import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Marker {
   id: string;
@@ -168,16 +169,43 @@ const Alerts = () => {
     return R * c;
   };
 
+  const [alertsExpanded, setAlertsExpanded] = useState(true);
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        {/* Header */}
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Community Alerts</h1>
+          <p className="text-sm text-muted-foreground">Stay informed about incidents in your area</p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-card rounded-xl p-4 text-center">
+            <Activity className="w-6 h-6 mx-auto mb-2 text-success" />
+            <p className="text-xl font-bold">{activeAlerts.length}</p>
+            <p className="text-xs text-muted-foreground">Active</p>
+          </div>
+          <div className="bg-card rounded-xl p-4 text-center">
+            <Clock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-xl font-bold">24h</p>
+            <p className="text-xs text-muted-foreground">Recent</p>
+          </div>
+          <div className="bg-card rounded-xl p-4 text-center">
+            <Radio className="w-6 h-6 mx-auto mb-2 text-warning" />
+            <p className="text-xl font-bold">Live</p>
+            <p className="text-xs text-muted-foreground">Updates</p>
+          </div>
+        </div>
+
         {/* Emergency Buttons - Side by Side Circles */}
         <div className="flex justify-center gap-6">
           {/* Panic Button - Circle */}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={handlePanicPress}
-            className={`relative w-36 h-36 rounded-full flex flex-col items-center justify-center transition-all ${
+            className={`relative w-32 h-32 rounded-full flex flex-col items-center justify-center transition-all ${
               isRecording
                 ? "bg-destructive shadow-panic"
                 : "bg-destructive hover:bg-destructive/90 panic-pulse"
@@ -186,14 +214,14 @@ const Alerts = () => {
             {isRecording ? (
               <div className="flex flex-col items-center">
                 <div className="w-3 h-3 bg-white rounded-full recording-pulse mb-2" />
-                <Mic className="w-8 h-8 text-white mb-1" />
-                <span className="text-xl font-mono font-bold text-white">{formatTime(recordingTime)}</span>
+                <Mic className="w-6 h-6 text-white mb-1" />
+                <span className="text-lg font-mono font-bold text-white">{formatTime(recordingTime)}</span>
                 <span className="text-[10px] text-white/80 mt-1">Tap to stop</span>
               </div>
             ) : (
               <>
-                <Shield className="w-12 h-12 text-white mb-1" />
-                <span className="text-lg font-bold text-white">PANIC</span>
+                <Shield className="w-10 h-10 text-white mb-1" />
+                <span className="text-base font-bold text-white">PANIC</span>
               </>
             )}
           </motion.button>
@@ -202,11 +230,132 @@ const Alerts = () => {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowAmberForm(true)}
-            className="w-36 h-36 rounded-full bg-warning hover:bg-warning/90 flex flex-col items-center justify-center transition-all"
+            className="w-32 h-32 rounded-full bg-warning hover:bg-warning/90 flex flex-col items-center justify-center transition-all"
           >
-            <AlertTriangle className="w-12 h-12 text-warning-foreground mb-1" />
-            <span className="text-lg font-bold text-warning-foreground">AMBER</span>
+            <AlertTriangle className="w-10 h-10 text-warning-foreground mb-1" />
+            <span className="text-base font-bold text-warning-foreground">AMBER</span>
           </motion.button>
+        </div>
+
+        {/* Collapsible Critical Alerts */}
+        <Collapsible open={alertsExpanded} onOpenChange={setAlertsExpanded}>
+          <CollapsibleTrigger className="flex items-center justify-between w-full bg-card rounded-xl p-4 hover:bg-card/80 transition-colors">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              <span className="font-semibold">Critical Alerts</span>
+              <span className="bg-secondary text-xs px-2 py-0.5 rounded-full">{activeAlerts.length}</span>
+            </div>
+            <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${alertsExpanded ? "rotate-180" : ""}`} />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            {loading ? (
+              <div className="grid grid-cols-2 gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-32 bg-card rounded-xl animate-pulse" />
+                ))}
+              </div>
+            ) : activeAlerts.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {activeAlerts.map((alert, index) => {
+                  const dist = userLocation
+                    ? calculateDistance(userLocation.latitude, userLocation.longitude, alert.latitude, alert.longitude)
+                    : null;
+
+                  return (
+                    <motion.div
+                      key={alert.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="bg-card rounded-xl p-4"
+                    >
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
+                          alert.type === "panic"
+                            ? "bg-destructive"
+                            : alert.type === "amber"
+                            ? "bg-warning"
+                            : "bg-primary"
+                        }`}
+                      >
+                        <AlertTriangle
+                          className={`w-5 h-5 ${
+                            alert.type === "amber" ? "text-warning-foreground" : "text-white"
+                          }`}
+                        />
+                      </div>
+                      <h3 className="font-semibold capitalize text-sm">{alert.type} Alert</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(alert.created_at!), { addSuffix: true })}
+                      </p>
+                      {dist !== null && (
+                        <p className="text-xs text-primary mt-1">{dist.toFixed(1)} km away</p>
+                      )}
+                      <button
+                        onClick={() => setSelectedAlert(alert)}
+                        className="w-full mt-2 py-1.5 bg-secondary hover:bg-secondary/80 rounded-lg text-xs font-medium transition-colors"
+                      >
+                        View Details
+                      </button>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-card rounded-xl">
+                <div className="w-16 h-16 mx-auto bg-success/10 rounded-full flex items-center justify-center mb-3">
+                  <Shield className="w-8 h-8 text-success" />
+                </div>
+                <p className="font-medium">All Clear</p>
+                <p className="text-sm text-muted-foreground mt-1">No active alerts in your area</p>
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Alert Safety Tips */}
+        <div className="bg-card rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Lightbulb className="w-5 h-5 text-warning" />
+            <span className="font-semibold">Alert Safety Tips</span>
+          </div>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li>• Stay aware of alerts in your area</li>
+            <li>• Report suspicious activities immediately</li>
+            <li>• Share alerts with your emergency contacts</li>
+            <li>• Use the map to see alert locations</li>
+          </ul>
+        </div>
+
+        {/* Alert Types Legend */}
+        <div className="bg-card rounded-xl p-4">
+          <h3 className="font-semibold mb-3">Alert Types</h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-destructive" />
+              <span>Panic/Assault</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-warning" />
+              <span>Amber/Kidnapping</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-purple-500" />
+              <span>Robbery</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-orange-500" />
+              <span>Accident</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-pink-500" />
+              <span>Suspicious</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-red-600" />
+              <span>Fire</span>
+            </div>
+          </div>
         </div>
 
         {/* Mini Map */}
@@ -362,73 +511,6 @@ const Alerts = () => {
           )}
         </AnimatePresence>
 
-        {/* Active Alerts */}
-        <section>
-          <h2 className="text-lg font-semibold mb-3">Active Alerts Nearby</h2>
-
-          {loading ? (
-            <div className="grid grid-cols-2 gap-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-32 bg-card rounded-xl animate-pulse" />
-              ))}
-            </div>
-          ) : activeAlerts.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3">
-              {activeAlerts.map((alert, index) => {
-                const dist = userLocation
-                  ? calculateDistance(userLocation.latitude, userLocation.longitude, alert.latitude, alert.longitude)
-                  : null;
-
-                return (
-                  <motion.div
-                    key={alert.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="bg-card rounded-xl p-4"
-                  >
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
-                        alert.type === "panic"
-                          ? "bg-destructive"
-                          : alert.type === "amber"
-                          ? "bg-warning"
-                          : "bg-primary"
-                      }`}
-                    >
-                      <AlertTriangle
-                        className={`w-5 h-5 ${
-                          alert.type === "amber" ? "text-warning-foreground" : "text-white"
-                        }`}
-                      />
-                    </div>
-                    <h3 className="font-semibold capitalize text-sm">{alert.type} Alert</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(alert.created_at!), { addSuffix: true })}
-                    </p>
-                    {dist !== null && (
-                      <p className="text-xs text-primary mt-1">{dist.toFixed(1)} km away</p>
-                    )}
-                    <button
-                      onClick={() => setSelectedAlert(alert)}
-                      className="w-full mt-2 py-1.5 bg-secondary hover:bg-secondary/80 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      View Details
-                    </button>
-                  </motion.div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-8 bg-card rounded-xl">
-              <div className="w-16 h-16 mx-auto bg-success/10 rounded-full flex items-center justify-center mb-3">
-                <Shield className="w-8 h-8 text-success" />
-              </div>
-              <p className="font-medium">All Clear</p>
-              <p className="text-sm text-muted-foreground mt-1">No active alerts in your area</p>
-            </div>
-          )}
-        </section>
       </main>
 
       <BottomNav />
