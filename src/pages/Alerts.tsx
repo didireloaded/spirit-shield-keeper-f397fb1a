@@ -1,5 +1,4 @@
-import { Navigation } from '@/components/Navigation';
-import { useAlerts } from '@/hooks/use-alerts';
+import { useAlerts } from '@/hooks/useAlerts';
 import { AlertsPresenter } from '@/components/alerts/AlertsPresenter';
 
 const Alerts = () => {
