@@ -40,6 +40,12 @@ const Alerts = () => {
     vehicleMake: "",
     vehicleColor: "",
     vehiclePlate: "",
+    age: "",
+    eyeColor: "",
+    hairColor: "",
+    height: "",
+    weight: "",
+    languages: "",
   });
 
   // Fetch markers for mini map
@@ -148,6 +154,12 @@ const Alerts = () => {
         vehicleMake: "",
         vehicleColor: "",
         vehiclePlate: "",
+        age: "",
+        eyeColor: "",
+        hairColor: "",
+        height: "",
+        weight: "",
+        languages: "",
       });
       clearAmberPhoto();
     }
@@ -220,96 +232,174 @@ const Alerts = () => {
           />
         </section>
 
-        {/* Amber Alert Form Modal */}
+        {/* Amber Alert Form Modal - Full Screen Red Design */}
         <AnimatePresence>
           {showAmberForm && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 z-50 flex items-end"
-              onClick={() => setShowAmberForm(false)}
+              className="fixed inset-0 bg-destructive z-50 overflow-y-auto"
             >
-              <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full bg-card rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto"
-              >
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold">Amber Alert Details</h2>
+              {/* Hero Photo Section with Red Gradient Overlay */}
+              <div className="relative w-full h-72">
+                {amberPhotoPreview ? (
+                  <>
+                    <img
+                      src={amberPhotoPreview}
+                      alt="Missing person"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-destructive/60 via-transparent to-destructive" />
+                    <button
+                      onClick={clearAmberPhoto}
+                      className="absolute top-4 right-4 p-2 bg-black/40 rounded-full hover:bg-black/60 transition-colors"
+                    >
+                      <X className="w-5 h-5 text-white" />
+                    </button>
+                  </>
+                ) : (
                   <button
-                    onClick={() => setShowAmberForm(false)}
-                    className="p-2 rounded-full bg-secondary hover:bg-secondary/80"
+                    onClick={selectAmberPhoto}
+                    disabled={photoUploading}
+                    className="w-full h-full bg-destructive/80 flex flex-col items-center justify-center gap-3 transition-colors"
                   >
-                    <X className="w-5 h-5" />
+                    {photoUploading ? (
+                      <div className="w-10 h-10 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center">
+                          <Camera className="w-12 h-12 text-white" />
+                        </div>
+                        <span className="text-white font-semibold text-lg">Add Photo</span>
+                        <span className="text-white/70 text-sm">Tap to upload</span>
+                      </>
+                    )}
                   </button>
-                </div>
+                )}
+                
+                {/* Close Button */}
+                <button
+                  onClick={() => setShowAmberForm(false)}
+                  className="absolute top-4 left-4 p-2 bg-black/40 rounded-full hover:bg-black/60 transition-colors"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
 
-                <div className="space-y-4">
-                  {/* Description */}
+                {/* Profile Avatar Overlap */}
+                {amberPhotoPreview && (
+                  <div className="absolute -bottom-12 left-6">
+                    <div className="w-24 h-24 rounded-full border-4 border-destructive overflow-hidden bg-card">
+                      <img
+                        src={amberPhotoPreview}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Content Section */}
+              <div className={`bg-card rounded-t-3xl ${amberPhotoPreview ? '-mt-6 pt-16' : 'pt-6'} min-h-[calc(100vh-18rem)]`}>
+                <div className="px-5 pb-8 space-y-4">
+                  {/* Name Input - Large */}
                   <div>
-                    <label className="text-sm text-muted-foreground mb-1 block">Description *</label>
-                    <textarea
-                      placeholder="Describe the missing person..."
+                    <input
+                      type="text"
+                      placeholder="Name of missing person"
                       value={amberFormData.description}
                       onChange={(e) => setAmberFormData({ ...amberFormData, description: e.target.value })}
-                      className="w-full px-4 py-3 bg-secondary rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-warning/50"
-                      rows={3}
+                      className="w-full text-xl font-bold bg-transparent border-none focus:outline-none placeholder:text-muted-foreground/50"
+                    />
+                    <div className="flex items-center gap-1 text-destructive mt-1">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-sm">Current Location</span>
+                    </div>
+                  </div>
+
+                  {/* Details Card */}
+                  <div className="bg-secondary/50 rounded-2xl p-4 space-y-2">
+                    <div className="grid grid-cols-2 gap-y-2 text-sm">
+                      <div>
+                        <span className="text-destructive font-medium">Missing Since:</span>
+                        <span className="ml-2 text-foreground">{new Date().toLocaleDateString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-destructive font-medium">Last Seen:</span>
+                        <span className="ml-2 text-foreground">Current Area</span>
+                      </div>
+                    </div>
+                    
+                    {/* Physical Description Row */}
+                    <div className="pt-2 border-t border-border">
+                      <input
+                        type="text"
+                        placeholder="Age (e.g., 25)"
+                        value={amberFormData.age || ''}
+                        onChange={(e) => setAmberFormData({ ...amberFormData, age: e.target.value })}
+                        className="w-full px-0 py-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/60"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <input
+                        type="text"
+                        placeholder="Eye color"
+                        value={amberFormData.eyeColor || ''}
+                        onChange={(e) => setAmberFormData({ ...amberFormData, eyeColor: e.target.value })}
+                        className="px-0 py-1 bg-transparent focus:outline-none placeholder:text-muted-foreground/60"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Hair color"
+                        value={amberFormData.hairColor || ''}
+                        onChange={(e) => setAmberFormData({ ...amberFormData, hairColor: e.target.value })}
+                        className="px-0 py-1 bg-transparent focus:outline-none placeholder:text-muted-foreground/60"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <input
+                        type="text"
+                        placeholder="Height (e.g., 5'10)"
+                        value={amberFormData.height || ''}
+                        onChange={(e) => setAmberFormData({ ...amberFormData, height: e.target.value })}
+                        className="px-0 py-1 bg-transparent focus:outline-none placeholder:text-muted-foreground/60"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Weight (e.g., 70kg)"
+                        value={amberFormData.weight || ''}
+                        onChange={(e) => setAmberFormData({ ...amberFormData, weight: e.target.value })}
+                        className="px-0 py-1 bg-transparent focus:outline-none placeholder:text-muted-foreground/60"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Languages spoken"
+                      value={amberFormData.languages || ''}
+                      onChange={(e) => setAmberFormData({ ...amberFormData, languages: e.target.value })}
+                      className="w-full px-0 py-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/60"
                     />
                   </div>
 
-                  {/* Photo Upload */}
-                  {amberPhotoPreview ? (
-                    <div className="relative">
-                      <img
-                        src={amberPhotoPreview}
-                        alt="Amber alert photo"
-                        className="w-full h-48 object-cover rounded-xl"
-                      />
-                      <button
-                        onClick={clearAmberPhoto}
-                        className="absolute top-2 right-2 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
-                      >
-                        <X className="w-4 h-4 text-white" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={selectAmberPhoto}
-                      disabled={photoUploading}
-                      className="w-full py-4 bg-secondary hover:bg-secondary/80 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors border-2 border-dashed border-border"
-                    >
-                      {photoUploading ? (
-                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <Camera className="w-6 h-6 text-muted-foreground" />
-                          <span className="text-sm font-medium">Upload Photo of Missing Person</span>
-                          <span className="text-xs text-muted-foreground">Tap to take or select photo</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  {/* Outfit */}
+                  {/* Outfit Description */}
                   <div>
-                    <label className="text-sm text-muted-foreground mb-1 block">Outfit Description</label>
-                    <input
-                      type="text"
-                      placeholder="What are they wearing?"
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Last Seen Wearing</label>
+                    <textarea
+                      placeholder="Describe clothing, accessories..."
                       value={amberFormData.outfitDescription}
                       onChange={(e) => setAmberFormData({ ...amberFormData, outfitDescription: e.target.value })}
-                      className="w-full px-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-warning/50"
+                      className="w-full px-4 py-3 bg-secondary/50 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-destructive/30"
+                      rows={2}
                     />
                   </div>
 
                   {/* Vehicle Details */}
-                  <div className="p-4 bg-secondary/50 rounded-xl space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                      <Car className="w-4 h-4" />
+                  <div className="bg-secondary/50 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Car className="w-4 h-4 text-destructive" />
                       <span>Vehicle Details (if applicable)</span>
                     </div>
                     <input
@@ -317,7 +407,7 @@ const Alerts = () => {
                       placeholder="Make & Model"
                       value={amberFormData.vehicleMake}
                       onChange={(e) => setAmberFormData({ ...amberFormData, vehicleMake: e.target.value })}
-                      className="w-full px-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-warning/50"
+                      className="w-full px-4 py-3 bg-background rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-destructive/30"
                     />
                     <div className="grid grid-cols-2 gap-3">
                       <input
@@ -325,28 +415,33 @@ const Alerts = () => {
                         placeholder="Color"
                         value={amberFormData.vehicleColor}
                         onChange={(e) => setAmberFormData({ ...amberFormData, vehicleColor: e.target.value })}
-                        className="w-full px-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-warning/50"
+                        className="w-full px-4 py-3 bg-background rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-destructive/30"
                       />
                       <input
                         type="text"
                         placeholder="License Plate"
                         value={amberFormData.vehiclePlate}
                         onChange={(e) => setAmberFormData({ ...amberFormData, vehiclePlate: e.target.value })}
-                        className="w-full px-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-warning/50"
+                        className="w-full px-4 py-3 bg-background rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-destructive/30"
                       />
                     </div>
                   </div>
 
-                  {/* Submit */}
+                  {/* Call to Action */}
+                  <p className="text-center text-sm text-muted-foreground">
+                    If seen, this alert will be broadcast to nearby users
+                  </p>
+
+                  {/* Submit Button */}
                   <button
                     onClick={handleAmberSubmit}
                     disabled={!amberFormData.description}
-                    className="w-full py-4 bg-warning hover:bg-warning/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-warning-foreground transition-colors"
+                    className="w-full py-4 bg-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-full font-bold text-white transition-colors text-lg"
                   >
-                    🚨 Broadcast Amber Alert
+                    Report Missing Person
                   </button>
                 </div>
-              </motion.div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
