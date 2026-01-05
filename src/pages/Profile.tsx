@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -14,6 +15,8 @@ import {
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWatchers } from "@/hooks/useWatchers";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useNavigate } from "react-router-dom";
 
 const menuItems = [
@@ -71,6 +74,8 @@ const menuItems = [
 const Profile = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { myWatchers, watchingMe } = useWatchers();
+  const { permission, requestPermission } = usePushNotifications();
 
   const handleSignOut = async () => {
     await signOut();
@@ -111,6 +116,32 @@ const Profile = () => {
           </button>
         </motion.div>
 
+        {/* Notification Permission Banner */}
+        {permission !== "granted" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="bg-warning/10 border border-warning/30 rounded-xl p-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Bell className="w-5 h-5 text-warning" />
+                <div>
+                  <p className="font-medium text-sm">Enable Notifications</p>
+                  <p className="text-xs text-muted-foreground">Get alerts for nearby emergencies</p>
+                </div>
+              </div>
+              <button
+                onClick={requestPermission}
+                className="px-3 py-1.5 bg-warning text-warning-foreground text-xs font-medium rounded-lg"
+              >
+                Enable
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Stats */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -119,8 +150,8 @@ const Profile = () => {
           className="grid grid-cols-3 gap-3"
         >
           {[
-            { label: "Watchers", value: "0" },
-            { label: "Check-ins", value: "0" },
+            { label: "Watchers", value: myWatchers.length.toString() },
+            { label: "Watching", value: watchingMe.filter(w => w.status === "accepted").length.toString() },
             { label: "Reports", value: "0" },
           ].map((stat) => (
             <div

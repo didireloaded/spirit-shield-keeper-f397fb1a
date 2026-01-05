@@ -13,6 +13,7 @@ import LookAfterMe from "./pages/LookAfterMe";
 import Authorities from "./pages/Authorities";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
+import Watchers from "./pages/Watchers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +80,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/watchers"
+              element={
+                <ProtectedRoute>
+                  <Watchers />
                 </ProtectedRoute>
               }
             />
