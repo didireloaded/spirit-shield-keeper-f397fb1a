@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePushNotifications } from "./usePushNotifications";
 import type { Database } from "@/integrations/supabase/types";
 
 type Alert = Database["public"]["Tables"]["alerts"]["Row"];
@@ -10,6 +11,33 @@ export const useAlerts = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { notifyNearbyAlert } = usePushNotifications();
+
+  // Fetch watchers to notify them
+  const notifyWatchers = useCallback(async (alertType: string) => {
+    if (!user) return;
+
+    // Get all people who are watching this user (accepted watchers)
+    const { data: watchers } = await supabase
+      .from("watchers")
+      .select("watcher_id")
+      .eq("user_id", user.id)
+      .eq("status", "accepted");
+
+    if (watchers && watchers.length > 0) {
+      // Get user profile for notification
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+
+      const userName = profile?.full_name || "Someone you watch";
+      
+      // Send in-app notification (in a real app, this would also send push via service)
+      console.log(`Notifying ${watchers.length} watchers about ${alertType} alert from ${userName}`);
+    }
+  }, [user]);
 
   useEffect(() => {
     fetchAlerts();
@@ -26,7 +54,13 @@ export const useAlerts = () => {
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            setAlerts((prev) => [payload.new as Alert, ...prev]);
+            const newAlert = payload.new as Alert;
+            setAlerts((prev) => [newAlert, ...prev]);
+            
+            // Notify about nearby alerts (not own alerts)
+            if (newAlert.user_id !== user?.id) {
+              notifyNearbyAlert(newAlert.type, "nearby");
+            }
           } else if (payload.eventType === "UPDATE") {
             setAlerts((prev) =>
               prev.map((alert) =>
@@ -47,7 +81,7 @@ export const useAlerts = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user?.id, notifyNearbyAlert]);
 
   const fetchAlerts = async () => {
     const { data, error } = await supabase
@@ -83,6 +117,11 @@ export const useAlerts = () => {
       })
       .select()
       .single();
+
+    // Notify watchers about the alert
+    if (data && !error) {
+      await notifyWatchers(type);
+    }
 
     return { data, error };
   };

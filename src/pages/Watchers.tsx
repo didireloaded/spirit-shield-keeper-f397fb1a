@@ -11,18 +11,23 @@ import {
   Eye,
   Bell,
   Trash2,
+  MessageCircle,
+  Phone,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { useWatchers } from "@/hooks/useWatchers";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useDirectMessages } from "@/hooks/useDirectMessages";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 interface UserResult {
   id: string;
   full_name: string | null;
   avatar_url: string | null;
+  phone: string | null;
 }
 
 const Watchers = () => {
@@ -37,14 +42,17 @@ const Watchers = () => {
     stopWatching,
   } = useWatchers();
   const { permission, requestPermission } = usePushNotifications();
+  const { startConversation } = useDirectMessages();
+  const navigate = useNavigate();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [activeTab, setActiveTab] = useState<"watchers" | "watching">("watchers");
+  const [searchType, setSearchType] = useState<"name" | "phone">("name");
 
-  // Search for users
+  // Search for users by name or phone
   useEffect(() => {
     if (searchQuery.length < 2) {
       setSearchResults([]);
@@ -53,11 +61,21 @@ const Watchers = () => {
 
     const searchUsers = async () => {
       setSearching(true);
-      const { data } = await supabase
+      
+      let query = supabase
         .from("profiles")
-        .select("id, full_name, avatar_url")
-        .ilike("full_name", `%${searchQuery}%`)
-        .limit(10);
+        .select("id, full_name, avatar_url, phone");
+      
+      if (searchType === "phone") {
+        // Search by phone - remove spaces and special chars for matching
+        const cleanPhone = searchQuery.replace(/[\s\-\(\)]/g, "");
+        query = query.ilike("phone", `%${cleanPhone}%`);
+      } else {
+        // Search by name
+        query = query.ilike("full_name", `%${searchQuery}%`);
+      }
+      
+      const { data } = await query.limit(10);
 
       setSearchResults(data || []);
       setSearching(false);
@@ -65,7 +83,7 @@ const Watchers = () => {
 
     const debounce = setTimeout(searchUsers, 300);
     return () => clearTimeout(debounce);
-  }, [searchQuery]);
+  }, [searchQuery, searchType]);
 
   const handleInvite = async (userId: string, userName: string) => {
     const { error } = await inviteWatcherById(userId);
@@ -75,6 +93,15 @@ const Watchers = () => {
       toast.success(`Watcher request sent to ${userName}`);
       setShowAddModal(false);
       setSearchQuery("");
+    }
+  };
+
+  const handleStartDM = async (userId: string) => {
+    const conversationId = await startConversation(userId);
+    if (conversationId) {
+      navigate(`/messages?chat=${conversationId}`);
+    } else {
+      toast.error("Failed to start conversation");
     }
   };
 
@@ -265,6 +292,13 @@ const Watchers = () => {
                         </p>
                       </div>
                       <button
+                        onClick={() => handleStartDM(watcher.watcher_id)}
+                        className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                        title="Send message"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleRemoveWatcher(watcher.watcher_id)}
                         className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                       >
@@ -348,6 +382,13 @@ const Watchers = () => {
                           </p>
                         </div>
                         <button
+                          onClick={() => handleStartDM(watched.user_id)}
+                          className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          title="Send message"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleStopWatching(watched.user_id)}
                           className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                         >
@@ -399,12 +440,38 @@ const Watchers = () => {
                   </button>
                 </div>
 
+                {/* Search Type Toggle */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setSearchType("name")}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      searchType === "name"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground"
+                    }`}
+                  >
+                    <Users className="w-4 h-4 inline mr-2" />
+                    By Name
+                  </button>
+                  <button
+                    onClick={() => setSearchType("phone")}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      searchType === "phone"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground"
+                    }`}
+                  >
+                    <Phone className="w-4 h-4 inline mr-2" />
+                    By Phone
+                  </button>
+                </div>
+
                 {/* Search */}
                 <div className="relative mb-4">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <input
-                    type="text"
-                    placeholder="Search by name..."
+                    type={searchType === "phone" ? "tel" : "text"}
+                    placeholder={searchType === "phone" ? "Search by phone number..." : "Search by name..."}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -432,6 +499,9 @@ const Watchers = () => {
                           <p className="font-medium text-sm">
                             {user.full_name || "Unknown"}
                           </p>
+                          {user.phone && (
+                            <p className="text-xs text-muted-foreground">{user.phone}</p>
+                          )}
                         </div>
                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       </button>
