@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Phone, Shield, Flame, Heart, Stethoscope, Search } from "lucide-react";
+import { Phone, Shield, Flame, Heart, Stethoscope, Search, Mail } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -53,6 +53,7 @@ const Authorities = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<"police" | "fire" | "helpline" | "medical">("police");
 
   useEffect(() => {
     fetchContacts();
@@ -90,24 +91,25 @@ const Authorities = () => {
     });
   };
 
-  const ContactCard = ({ contact, color }: { contact: AuthorityContact; color: string }) => (
+  const categories = [
+    { id: "police", label: "Police", icon: Shield, color: "text-primary", count: policeContacts.length || defaultContacts.police.length },
+    { id: "fire", label: "Fire", icon: Flame, color: "text-destructive", count: fireContacts.length || defaultContacts.fire.length },
+    { id: "helpline", label: "Helplines", icon: Heart, color: "text-pink-400", count: helplineContacts.length || defaultContacts.helplines.length },
+    { id: "medical", label: "Medical", icon: Stethoscope, color: "text-success", count: medicalContacts.length || defaultContacts.medical.length },
+  ];
+
+  const ContactCard = ({ name, phone, email, region, color }: { name: string; phone: string; email?: string; region?: string; color: string }) => (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-card rounded-xl p-4 border ${color}`}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className={`bg-card rounded-xl p-3 border ${color}`}
     >
-      <h3 className="font-semibold mb-1">{contact.name}</h3>
-      {contact.description && (
-        <p className="text-xs text-muted-foreground mb-2">{contact.description}</p>
-      )}
-      <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
-        <Phone className="w-3.5 h-3.5" />
-        {contact.phone}
-      </p>
-      <div className="flex gap-2">
+      <h3 className="font-semibold text-sm truncate">{name}</h3>
+      {region && <p className="text-xs text-muted-foreground mb-2">{region}</p>}
+      <div className="flex gap-2 mt-2">
         <a
-          href={`tel:${contact.phone}`}
-          className={`flex-1 py-2 rounded-lg text-center text-sm font-medium transition-colors ${
+          href={`tel:${phone}`}
+          className={`flex-1 py-2 rounded-lg text-center text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
             color.includes("primary")
               ? "bg-primary hover:bg-primary/90 text-primary-foreground"
               : color.includes("destructive")
@@ -117,14 +119,16 @@ const Authorities = () => {
               : "bg-success hover:bg-success/90 text-success-foreground"
           }`}
         >
-          📞 Call Now
+          <Phone className="w-3 h-3" />
+          Call
         </a>
-        {contact.email && (
+        {email && (
           <a
-            href={`mailto:${contact.email}`}
-            className="flex-1 py-2 bg-secondary hover:bg-secondary/80 rounded-lg text-center text-sm font-medium transition-colors"
+            href={`mailto:${email}`}
+            className="flex-1 py-2 bg-secondary hover:bg-secondary/80 rounded-lg text-center text-xs font-medium transition-colors flex items-center justify-center gap-1"
           >
-            ✉️ Email
+            <Mail className="w-3 h-3" />
+            Email
           </a>
         )}
       </div>
@@ -134,13 +138,13 @@ const Authorities = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background pb-24">
-        <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="space-y-3">
-              <div className="h-8 w-32 bg-card rounded animate-pulse" />
-              <div className="h-32 bg-card rounded-xl animate-pulse" />
-            </div>
-          ))}
+        <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
+          <div className="h-12 bg-card rounded-xl animate-pulse" />
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-24 bg-card rounded-xl animate-pulse" />
+            ))}
+          </div>
         </main>
         <BottomNav />
       </div>
@@ -149,7 +153,7 @@ const Authorities = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -162,8 +166,46 @@ const Authorities = () => {
           />
         </div>
 
-        {/* Region Filter */}
-        {regions.length > 0 && (
+        {/* Crime Stop Hotline - Prominent */}
+        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-bold text-lg">🚨 Crime Stop Hotline</p>
+              <p className="text-sm text-muted-foreground">24/7 Emergency Line</p>
+            </div>
+            <a
+              href="tel:10111"
+              className="px-6 py-3 bg-destructive hover:bg-destructive/90 rounded-xl font-bold text-destructive-foreground"
+            >
+              10111
+            </a>
+          </div>
+        </div>
+
+        {/* Category Tabs */}
+        <div className="grid grid-cols-4 gap-2">
+          {categories.map((cat) => {
+            const Icon = cat.icon;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id as any)}
+                className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${
+                  activeCategory === cat.id
+                    ? "bg-card ring-2 ring-primary"
+                    : "bg-card/50 hover:bg-card"
+                }`}
+              >
+                <Icon className={`w-5 h-5 ${cat.color}`} />
+                <span className="text-xs font-medium">{cat.label}</span>
+                <span className="text-[10px] text-muted-foreground">({cat.count})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Region Filter for Police */}
+        {activeCategory === "police" && regions.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2">
             <button
               onClick={() => setSelectedRegion(null)}
@@ -187,175 +229,108 @@ const Authorities = () => {
           </div>
         )}
 
-        {/* Crime Stop Hotline - Prominent */}
-        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-bold text-lg">🚨 Crime Stop Hotline</p>
-              <p className="text-sm text-muted-foreground">24/7 Emergency Line</p>
-            </div>
-            <a
-              href="tel:10111"
-              className="px-6 py-3 bg-destructive hover:bg-destructive/90 rounded-xl font-bold text-destructive-foreground"
-            >
-              10111
-            </a>
-          </div>
+        {/* Contacts Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {activeCategory === "police" && (
+            <>
+              {filterContacts(policeContacts).length > 0
+                ? filterContacts(policeContacts).map((contact) => (
+                    <ContactCard
+                      key={contact.id}
+                      name={contact.name}
+                      phone={contact.phone || ""}
+                      email={contact.email || undefined}
+                      region={contact.region}
+                      color="border-primary/30"
+                    />
+                  ))
+                : defaultContacts.police
+                    .filter((c) => !selectedRegion || c.region === selectedRegion)
+                    .filter((c) => !searchQuery || c.region.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((contact, idx) => (
+                      <ContactCard
+                        key={idx}
+                        name={`${contact.region} Police`}
+                        phone={contact.mobile || contact.tel}
+                        email={contact.email}
+                        color="border-primary/30"
+                      />
+                    ))}
+            </>
+          )}
+
+          {activeCategory === "fire" && (
+            <>
+              {fireContacts.length > 0
+                ? fireContacts.map((contact) => (
+                    <ContactCard
+                      key={contact.id}
+                      name={contact.name}
+                      phone={contact.phone || ""}
+                      email={contact.email || undefined}
+                      color="border-destructive/30"
+                    />
+                  ))
+                : defaultContacts.fire.map((contact, idx) => (
+                    <ContactCard
+                      key={idx}
+                      name={contact.name}
+                      phone={contact.tel}
+                      email={contact.email || undefined}
+                      color="border-destructive/30"
+                    />
+                  ))}
+            </>
+          )}
+
+          {activeCategory === "helpline" && (
+            <>
+              {helplineContacts.length > 0
+                ? helplineContacts.map((contact) => (
+                    <ContactCard
+                      key={contact.id}
+                      name={contact.name}
+                      phone={contact.phone || ""}
+                      email={contact.email || undefined}
+                      color="border-pink-500/30"
+                    />
+                  ))
+                : defaultContacts.helplines.map((contact, idx) => (
+                    <ContactCard
+                      key={idx}
+                      name={contact.name}
+                      phone={contact.emergency || contact.tel}
+                      email={contact.email || undefined}
+                      color="border-pink-500/30"
+                    />
+                  ))}
+            </>
+          )}
+
+          {activeCategory === "medical" && (
+            <>
+              {medicalContacts.length > 0
+                ? medicalContacts.map((contact) => (
+                    <ContactCard
+                      key={contact.id}
+                      name={contact.name}
+                      phone={contact.phone || ""}
+                      email={contact.email || undefined}
+                      color="border-success/30"
+                    />
+                  ))
+                : defaultContacts.medical.map((contact, idx) => (
+                    <ContactCard
+                      key={idx}
+                      name={contact.name}
+                      phone={contact.tel}
+                      email={contact.email || undefined}
+                      color="border-success/30"
+                    />
+                  ))}
+            </>
+          )}
         </div>
-
-        {/* Police */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <Shield className="w-6 h-6 text-primary" />
-            <h2 className="text-lg font-semibold">Police</h2>
-          </div>
-          <div className="space-y-3">
-            {filterContacts(policeContacts).length > 0 ? (
-              filterContacts(policeContacts).map((contact) => (
-                <ContactCard key={contact.id} contact={contact} color="border-primary/30" />
-              ))
-            ) : (
-              // Fallback to hardcoded
-              defaultContacts.police.slice(0, 5).map((contact, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="bg-card rounded-xl p-4 border border-primary/30"
-                >
-                  <h3 className="font-semibold mb-1">{contact.region} Police</h3>
-                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5" />
-                    {contact.tel} {contact.mobile && `• ${contact.mobile}`}
-                  </p>
-                  <div className="flex gap-2">
-                    <a
-                      href={`tel:${contact.mobile || contact.tel}`}
-                      className="flex-1 bg-primary hover:bg-primary/90 py-2 rounded-lg text-center text-sm font-medium text-primary-foreground transition-colors"
-                    >
-                      📞 Call Now
-                    </a>
-                    <a
-                      href={`mailto:${contact.email}`}
-                      className="flex-1 bg-secondary hover:bg-secondary/80 py-2 rounded-lg text-center text-sm font-medium transition-colors"
-                    >
-                      ✉️ Email
-                    </a>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* Fire Brigade */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <Flame className="w-6 h-6 text-destructive" />
-            <h2 className="text-lg font-semibold">Fire Brigade</h2>
-          </div>
-          <div className="space-y-3">
-            {fireContacts.length > 0 ? (
-              fireContacts.map((contact) => (
-                <ContactCard key={contact.id} contact={contact} color="border-destructive/30" />
-              ))
-            ) : (
-              defaultContacts.fire.map((contact, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-card rounded-xl p-4 border border-destructive/30"
-                >
-                  <h3 className="font-semibold mb-1">{contact.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5" />
-                    {contact.tel}
-                  </p>
-                  <a
-                    href={`tel:${contact.tel}`}
-                    className="block w-full bg-destructive hover:bg-destructive/90 py-2 rounded-lg text-center text-sm font-medium text-destructive-foreground transition-colors"
-                  >
-                    📞 Call Now
-                  </a>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* Helplines */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <Heart className="w-6 h-6 text-pink-400" />
-            <h2 className="text-lg font-semibold">Helplines</h2>
-          </div>
-          <div className="space-y-3">
-            {helplineContacts.length > 0 ? (
-              helplineContacts.map((contact) => (
-                <ContactCard key={contact.id} contact={contact} color="border-pink-500/30" />
-              ))
-            ) : (
-              defaultContacts.helplines.map((contact, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-card rounded-xl p-4 border border-pink-500/30"
-                >
-                  <h3 className="font-semibold mb-1">{contact.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5" />
-                    {contact.tel} {contact.emergency && `• Emergency: ${contact.emergency}`}
-                  </p>
-                  <a
-                    href={`tel:${contact.emergency || contact.tel}`}
-                    className="block w-full bg-pink-600 hover:bg-pink-700 py-2 rounded-lg text-center text-sm font-medium text-white transition-colors"
-                  >
-                    📞 Call Now
-                  </a>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* Medical */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <Stethoscope className="w-6 h-6 text-success" />
-            <h2 className="text-lg font-semibold">Medical Services</h2>
-          </div>
-          <div className="space-y-3">
-            {medicalContacts.length > 0 ? (
-              medicalContacts.map((contact) => (
-                <ContactCard key={contact.id} contact={contact} color="border-success/30" />
-              ))
-            ) : (
-              defaultContacts.medical.map((contact, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-card rounded-xl p-4 border border-success/30"
-                >
-                  <h3 className="font-semibold mb-1">{contact.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5" />
-                    {contact.tel}
-                  </p>
-                  <a
-                    href={`tel:${contact.tel}`}
-                    className="block w-full bg-success hover:bg-success/90 py-2 rounded-lg text-center text-sm font-medium text-success-foreground transition-colors"
-                  >
-                    📞 Call Now
-                  </a>
-                </motion.div>
-              ))
-            )}
-          </div>
-        </section>
       </main>
 
       <BottomNav />

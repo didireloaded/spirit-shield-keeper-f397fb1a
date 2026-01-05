@@ -1,13 +1,23 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, Shield, Mic, X, Camera, Car, Upload, ImageIcon } from "lucide-react";
+import { AlertTriangle, Shield, Mic, X, Camera, Car } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { MiniMap } from "@/components/MiniMap";
+import { AlertDetailsModal } from "@/components/AlertDetailsModal";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAudioRecording } from "@/hooks/useAudioRecording";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+
+interface Marker {
+  id: string;
+  latitude: number;
+  longitude: number;
+  type: string;
+}
 
 const Alerts = () => {
   const { alerts, loading, createAlert } = useAlerts();
@@ -22,6 +32,8 @@ const Alerts = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
   const [showAmberForm, setShowAmberForm] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState<any | null>(null);
+  const [markers, setMarkers] = useState<Marker[]>([]);
   const [amberFormData, setAmberFormData] = useState({
     description: "",
     outfitDescription: "",
@@ -29,6 +41,27 @@ const Alerts = () => {
     vehicleColor: "",
     vehiclePlate: "",
   });
+
+  // Fetch markers for mini map
+  useEffect(() => {
+    const fetchMarkers = async () => {
+      const { data } = await supabase
+        .from("markers")
+        .select("id, latitude, longitude, type")
+        .gte("expires_at", new Date().toISOString());
+      if (data) setMarkers(data);
+    };
+    fetchMarkers();
+
+    const channel = supabase
+      .channel("markers-alerts-page")
+      .on("postgres_changes", { event: "*", schema: "public", table: "markers" }, fetchMarkers)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Recording timer
   useEffect(() => {
@@ -121,56 +154,71 @@ const Alerts = () => {
   }, [latitude, longitude, amberFormData, amberPhotoUrl, startRecording, createAlert, clearAmberPhoto]);
 
   const activeAlerts = alerts.filter((a) => a.status === "active");
+  const userLocation = latitude && longitude ? { latitude, longitude } : null;
+
+  // Calculate distance between two points
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
 
   return (
     <div className="min-h-screen bg-background pb-24">
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Emergency Buttons */}
-        <div className="space-y-4">
-          {/* Panic Button */}
+        {/* Emergency Buttons - Side by Side Circles */}
+        <div className="flex justify-center gap-6">
+          {/* Panic Button - Circle */}
           <motion.button
-            whileTap={{ scale: 0.98 }}
+            whileTap={{ scale: 0.95 }}
             onClick={handlePanicPress}
-            className={`w-full aspect-[2.5/1] rounded-2xl flex flex-col items-center justify-center gap-2 transition-all relative overflow-hidden ${
+            className={`relative w-36 h-36 rounded-full flex flex-col items-center justify-center transition-all ${
               isRecording
                 ? "bg-destructive shadow-panic"
                 : "bg-destructive hover:bg-destructive/90 panic-pulse"
             }`}
           >
             {isRecording ? (
-              <>
-                {/* Pulsing background */}
-                <div className="absolute inset-0 bg-destructive animate-pulse" />
-                <div className="relative z-10 flex flex-col items-center">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-4 h-4 bg-white rounded-full recording-pulse" />
-                    <Mic className="w-8 h-8 text-white" />
-                    <span className="text-white font-bold text-xl">RECORDING</span>
-                  </div>
-                  <span className="text-5xl font-mono font-bold text-white">{formatTime(recordingTime)}</span>
-                  <span className="text-white/80 text-sm mt-2">Tap again to stop & send</span>
-                </div>
-              </>
+              <div className="flex flex-col items-center">
+                <div className="w-3 h-3 bg-white rounded-full recording-pulse mb-2" />
+                <Mic className="w-8 h-8 text-white mb-1" />
+                <span className="text-xl font-mono font-bold text-white">{formatTime(recordingTime)}</span>
+                <span className="text-[10px] text-white/80 mt-1">Tap to stop</span>
+              </div>
             ) : (
               <>
-                <Shield className="w-14 h-14 text-white" />
-                <span className="text-2xl font-bold text-white">🚨 PANIC</span>
-                <span className="text-white/70 text-xs">Hold to activate emergency alert</span>
+                <Shield className="w-12 h-12 text-white mb-1" />
+                <span className="text-lg font-bold text-white">PANIC</span>
               </>
             )}
           </motion.button>
 
-          {/* Amber Alert Button */}
+          {/* Amber Alert Button - Circle */}
           <motion.button
-            whileTap={{ scale: 0.98 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setShowAmberForm(true)}
-            className="w-full py-6 rounded-2xl bg-warning hover:bg-warning/90 flex flex-col items-center justify-center gap-2 transition-all"
+            className="w-36 h-36 rounded-full bg-warning hover:bg-warning/90 flex flex-col items-center justify-center transition-all"
           >
-            <AlertTriangle className="w-10 h-10 text-warning-foreground" />
-            <span className="text-xl font-bold text-warning-foreground">🟠 AMBER ALERT</span>
-            <span className="text-warning-foreground/70 text-xs">Missing Person Report</span>
+            <AlertTriangle className="w-12 h-12 text-warning-foreground mb-1" />
+            <span className="text-lg font-bold text-warning-foreground">AMBER</span>
           </motion.button>
         </div>
+
+        {/* Mini Map */}
+        <section>
+          <h2 className="text-lg font-semibold mb-3">Live Incidents</h2>
+          <MiniMap
+            markers={markers}
+            alerts={activeAlerts}
+            userLocation={userLocation}
+            className="w-full h-48"
+          />
+        </section>
 
         {/* Amber Alert Form Modal */}
         <AnimatePresence>
@@ -303,29 +351,44 @@ const Alerts = () => {
           )}
         </AnimatePresence>
 
+        {/* Alert Details Modal */}
+        <AnimatePresence>
+          {selectedAlert && (
+            <AlertDetailsModal
+              alert={selectedAlert}
+              onClose={() => setSelectedAlert(null)}
+              userLocation={userLocation}
+            />
+          )}
+        </AnimatePresence>
+
         {/* Active Alerts */}
         <section>
           <h2 className="text-lg font-semibold mb-3">Active Alerts Nearby</h2>
 
           {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-20 bg-card rounded-xl animate-pulse" />
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-32 bg-card rounded-xl animate-pulse" />
               ))}
             </div>
           ) : activeAlerts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {activeAlerts.map((alert, index) => (
-                <motion.div
-                  key={alert.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-card rounded-xl p-4"
-                >
-                  <div className="flex items-start gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              {activeAlerts.map((alert, index) => {
+                const dist = userLocation
+                  ? calculateDistance(userLocation.latitude, userLocation.longitude, alert.latitude, alert.longitude)
+                  : null;
+
+                return (
+                  <motion.div
+                    key={alert.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="bg-card rounded-xl p-4"
+                  >
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
                         alert.type === "panic"
                           ? "bg-destructive"
                           : alert.type === "amber"
@@ -339,21 +402,22 @@ const Alerts = () => {
                         }`}
                       />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold capitalize truncate">{alert.type} Alert</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDistanceToNow(new Date(alert.created_at!), { addSuffix: true })}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {(Math.random() * 3).toFixed(1)}km away
-                      </p>
-                    </div>
-                  </div>
-                  <button className="w-full mt-3 py-2 bg-secondary hover:bg-secondary/80 rounded-lg text-sm font-medium transition-colors">
-                    View Details
-                  </button>
-                </motion.div>
-              ))}
+                    <h3 className="font-semibold capitalize text-sm">{alert.type} Alert</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(alert.created_at!), { addSuffix: true })}
+                    </p>
+                    {dist !== null && (
+                      <p className="text-xs text-primary mt-1">{dist.toFixed(1)} km away</p>
+                    )}
+                    <button
+                      onClick={() => setSelectedAlert(alert)}
+                      className="w-full mt-2 py-1.5 bg-secondary hover:bg-secondary/80 rounded-lg text-xs font-medium transition-colors"
+                    >
+                      View Details
+                    </button>
+                  </motion.div>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-8 bg-card rounded-xl">
