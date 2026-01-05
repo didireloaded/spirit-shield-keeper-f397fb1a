@@ -1,17 +1,98 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, Shield, X } from "lucide-react";
+import { AlertTriangle, Shield, X, Mic, MicOff, MapPin } from "lucide-react";
+import { useAudioRecording } from "@/hooks/useAudioRecording";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { useAlerts } from "@/hooks/useAlerts";
+import { toast } from "sonner";
 
 interface PanicButtonProps {
-  onActivate?: () => void;
+  variant?: "panic" | "amber";
 }
 
-export const PanicButton = ({ onActivate }: PanicButtonProps) => {
+export const PanicButton = ({ variant = "panic" }: PanicButtonProps) => {
   const [isPressed, setIsPressed] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const [isActivated, setIsActivated] = useState(false);
+  const [alertId, setAlertId] = useState<string | null>(null);
+
+  const { isRecording, startRecording, stopRecording, error: audioError } = useAudioRecording();
+  const { latitude, longitude, error: geoError } = useGeolocation();
+  const { createAlert, cancelAlert } = useAlerts();
+
+  const isPanic = variant === "panic";
+  const buttonLabel = isPanic ? "Panic" : "Amber";
+  const alertType = isPanic ? "panic" : "amber";
+
+  const handleActivate = useCallback(async () => {
+    console.log(`[${buttonLabel}] Activating alert...`);
+
+    // Start audio recording
+    await startRecording();
+
+    // Get current location
+    if (!latitude || !longitude) {
+      toast.error("Unable to get your location. Please enable GPS.");
+      return;
+    }
+
+    // Create alert in database (without audio URL for now)
+    const { data, error } = await createAlert(
+      alertType,
+      latitude,
+      longitude,
+      `${buttonLabel} alert triggered`
+    );
+
+    if (error) {
+      console.error(`[${buttonLabel}] Failed to create alert:`, error);
+      toast.error("Failed to create alert. Please try again.");
+      return;
+    }
+
+    if (data) {
+      setAlertId(data.id);
+      setIsActivated(true);
+      toast.success(`${buttonLabel} alert activated! Recording audio...`);
+    }
+  }, [startRecording, latitude, longitude, createAlert, alertType, buttonLabel]);
+
+  const handleDeactivate = useCallback(async () => {
+    console.log(`[${buttonLabel}] Deactivating alert...`);
+
+    // Stop recording and upload audio
+    const audioUrl = await stopRecording();
+
+    if (audioUrl && alertId) {
+      // Update alert with audio URL would go here
+      console.log(`[${buttonLabel}] Audio uploaded:`, audioUrl);
+    }
+
+    toast.info("Alert finalized. Evidence saved.");
+    setIsActivated(false);
+    setAlertId(null);
+  }, [stopRecording, alertId, buttonLabel]);
+
+  const handleCancel = useCallback(async () => {
+    if (alertId) {
+      await cancelAlert(alertId);
+    }
+    if (isRecording) {
+      await stopRecording();
+    }
+    setIsActivated(false);
+    setAlertId(null);
+    setHoldProgress(0);
+    toast.info("Alert cancelled.");
+  }, [alertId, isRecording, cancelAlert, stopRecording]);
 
   const handleMouseDown = () => {
+    if (isActivated) {
+      // Second press - stop recording
+      handleDeactivate();
+      return;
+    }
+
     setIsPressed(true);
     let progress = 0;
     const interval = setInterval(() => {
@@ -19,8 +100,7 @@ export const PanicButton = ({ onActivate }: PanicButtonProps) => {
       setHoldProgress(progress);
       if (progress >= 100) {
         clearInterval(interval);
-        setIsActivated(true);
-        onActivate?.();
+        handleActivate();
       }
     }, 30);
 
@@ -36,10 +116,10 @@ export const PanicButton = ({ onActivate }: PanicButtonProps) => {
     document.addEventListener("touchend", handleMouseUp);
   };
 
-  const cancelAlert = () => {
-    setIsActivated(false);
-    setHoldProgress(0);
-  };
+  const gradientClass = isPanic ? "gradient-panic" : "bg-warning";
+  const shadowClass = isPanic ? "shadow-panic" : "shadow-lg";
+  const pulseClass = isPanic ? "panic-pulse" : "";
+  const strokeColor = isPanic ? "hsl(var(--panic))" : "hsl(var(--warning))";
 
   return (
     <div className="relative flex flex-col items-center">
@@ -53,18 +133,31 @@ export const PanicButton = ({ onActivate }: PanicButtonProps) => {
             className="flex flex-col items-center gap-4"
           >
             <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-panic animate-ping opacity-30" />
-              <div className="w-36 h-36 rounded-full gradient-panic flex items-center justify-center shadow-panic">
-                <AlertTriangle className="w-16 h-16 text-destructive-foreground" />
+              <div className={`absolute inset-0 rounded-full ${isPanic ? "bg-panic" : "bg-warning"} animate-ping opacity-30`} />
+              <div className={`w-28 h-28 rounded-full ${gradientClass} flex flex-col items-center justify-center ${shadowClass}`}>
+                {isRecording ? (
+                  <Mic className="w-10 h-10 text-white animate-pulse" />
+                ) : (
+                  <AlertTriangle className="w-10 h-10 text-white" />
+                )}
+                <span className="text-[10px] font-bold text-white uppercase mt-1">
+                  {isRecording ? "Recording" : "Active"}
+                </span>
               </div>
             </div>
+
             <div className="text-center">
-              <p className="text-lg font-bold text-destructive">ALERT ACTIVE</p>
-              <p className="text-sm text-muted-foreground">Help is on the way</p>
+              <p className={`text-sm font-bold ${isPanic ? "text-destructive" : "text-warning"}`}>
+                {buttonLabel.toUpperCase()} ALERT ACTIVE
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isRecording ? "Tap again to stop recording" : "Evidence saved"}
+              </p>
             </div>
+
             <button
-              onClick={cancelAlert}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              onClick={handleCancel}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors text-sm"
             >
               <X className="w-4 h-4" />
               Cancel Alert
@@ -75,52 +168,32 @@ export const PanicButton = ({ onActivate }: PanicButtonProps) => {
             key="ready"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="flex flex-col items-center gap-3"
+            className="flex flex-col items-center gap-2"
           >
             <div className="relative">
-              {/* Outer pulse ring */}
-              <motion.div
-                className="absolute inset-0 rounded-full bg-panic/20"
-                animate={{
-                  scale: [1, 1.2, 1],
-                  opacity: [0.5, 0, 0.5],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-                style={{
-                  width: "144px",
-                  height: "144px",
-                  left: "-12px",
-                  top: "-12px",
-                }}
-              />
-
               {/* Progress ring */}
               <svg
-                className="absolute -inset-2 w-[152px] h-[152px] -rotate-90"
-                viewBox="0 0 152 152"
+                className="absolute -inset-2 w-[120px] h-[120px] -rotate-90"
+                viewBox="0 0 120 120"
               >
                 <circle
-                  cx="76"
-                  cy="76"
-                  r="70"
+                  cx="60"
+                  cy="60"
+                  r="54"
                   fill="none"
-                  stroke="hsl(var(--panic) / 0.2)"
-                  strokeWidth="6"
+                  stroke={`${strokeColor}20`}
+                  strokeWidth="5"
                 />
                 <motion.circle
-                  cx="76"
-                  cy="76"
-                  r="70"
+                  cx="60"
+                  cy="60"
+                  r="54"
                   fill="none"
-                  stroke="hsl(var(--panic))"
-                  strokeWidth="6"
+                  stroke={strokeColor}
+                  strokeWidth="5"
                   strokeLinecap="round"
-                  strokeDasharray={440}
-                  strokeDashoffset={440 - (440 * holdProgress) / 100}
+                  strokeDasharray={339}
+                  strokeDashoffset={339 - (339 * holdProgress) / 100}
                   transition={{ duration: 0.05 }}
                 />
               </svg>
@@ -132,29 +205,29 @@ export const PanicButton = ({ onActivate }: PanicButtonProps) => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className={`
-                  relative w-32 h-32 rounded-full
-                  gradient-panic shadow-panic
-                  flex items-center justify-center
+                  relative w-24 h-24 rounded-full
+                  ${gradientClass} ${shadowClass}
+                  flex flex-col items-center justify-center gap-1
                   cursor-pointer select-none
                   transition-all duration-200
-                  ${isPressed ? "scale-95" : "panic-pulse"}
+                  ${!isPressed && !isActivated ? pulseClass : ""}
                 `}
               >
-                <div className="flex flex-col items-center gap-1">
-                  <Shield className="w-10 h-10 text-destructive-foreground" />
-                  <span className="text-xs font-bold text-destructive-foreground uppercase tracking-wide">
-                    {isPressed ? "Hold..." : "Panic"}
-                  </span>
-                </div>
+                <Shield className="w-8 h-8 text-white" />
+                <span className="text-[10px] font-bold text-white uppercase tracking-wide">
+                  {isPressed ? "Hold..." : buttonLabel}
+                </span>
               </motion.button>
             </div>
-
-            <p className="text-sm text-muted-foreground text-center max-w-[200px]">
-              Hold for 1.5 seconds to activate emergency alert
-            </p>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {(audioError || geoError) && (
+        <p className="text-xs text-destructive mt-2 text-center max-w-[200px]">
+          {audioError || geoError}
+        </p>
+      )}
     </div>
   );
 };

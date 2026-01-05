@@ -8,9 +8,13 @@ import {
   Settings,
   ChevronRight,
   LogOut,
+  Users,
+  Eye,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const menuItems = [
   {
@@ -18,34 +22,61 @@ const menuItems = [
     label: "Safety Status",
     description: "Currently: Safe",
     color: "text-success",
+    path: "/settings",
+  },
+  {
+    icon: Users,
+    label: "My Watchers",
+    description: "Manage trusted contacts",
+    color: "text-primary",
+    path: "/watchers",
   },
   {
     icon: MapPin,
     label: "My Locations",
     description: "Home, Work, Favorites",
     color: "text-primary",
+    path: "/settings",
   },
   {
     icon: Phone,
     label: "Emergency Contacts",
-    description: "5 contacts set up",
+    description: "Quick dial numbers",
     color: "text-warning",
+    path: "/authorities",
+  },
+  {
+    icon: Eye,
+    label: "Privacy & Ghost Mode",
+    description: "Control your visibility",
+    color: "text-muted-foreground",
+    path: "/settings",
   },
   {
     icon: Bell,
     label: "Notifications",
     description: "All enabled",
     color: "text-primary",
+    path: "/settings",
   },
   {
     icon: Settings,
     label: "Settings",
-    description: "Privacy, Account, Help",
+    description: "Account, Help, About",
     color: "text-muted-foreground",
+    path: "/settings",
   },
 ];
 
 const Profile = () => {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <Header title="Profile" />
@@ -62,14 +93,14 @@ const Profile = () => {
               <User className="w-10 h-10 text-primary-foreground" />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold">Guest User</h2>
-              <p className="text-sm text-muted-foreground">Windhoek, Namibia</p>
+              <h2 className="text-xl font-bold">{user?.email?.split("@")[0] || "User"}</h2>
+              <p className="text-sm text-muted-foreground">{user?.email}</p>
               <div className="flex items-center gap-2 mt-2">
                 <span className="px-2 py-0.5 bg-success/10 text-success text-xs font-medium rounded-full safe-glow">
                   ● Safe
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  Member since Jan 2026
+                  Windhoek, Namibia
                 </span>
               </div>
             </div>
@@ -88,10 +119,10 @@ const Profile = () => {
           className="grid grid-cols-3 gap-3"
         >
           {[
-            { label: "Reports", value: "0" },
+            { label: "Watchers", value: "0" },
             { label: "Check-ins", value: "0" },
-            { label: "Alerts Received", value: "3" },
-          ].map((stat, i) => (
+            { label: "Reports", value: "0" },
+          ].map((stat) => (
             <div
               key={stat.label}
               className="bg-card border border-border rounded-xl p-4 text-center"
@@ -114,6 +145,7 @@ const Profile = () => {
             return (
               <motion.button
                 key={item.label}
+                onClick={() => navigate(item.path)}
                 whileHover={{ x: 4 }}
                 className={`
                   w-full p-4 flex items-center gap-4 text-left
@@ -141,6 +173,7 @@ const Profile = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
+          onClick={handleSignOut}
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
           className="w-full p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center justify-center gap-2 text-destructive font-medium hover:bg-destructive/20 transition-colors"

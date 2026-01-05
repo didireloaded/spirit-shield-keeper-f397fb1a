@@ -1,57 +1,22 @@
 import { motion } from "framer-motion";
 import { Filter } from "lucide-react";
+import { useState } from "react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { AlertCard } from "@/components/AlertCard";
+import { useAlerts } from "@/hooks/useAlerts";
+import { formatDistanceToNow } from "date-fns";
 
-const mockAlerts = [
-  {
-    type: "amber" as const,
-    title: "Missing child - 8 year old boy",
-    location: "Khomasdal, Windhoek",
-    time: "5 min ago",
-    distance: "0.8 km",
-    isNew: true,
-  },
-  {
-    type: "robbery" as const,
-    title: "Armed robbery at petrol station",
-    location: "Sam Nujoma Drive",
-    time: "15 min ago",
-    distance: "2.3 km",
-    isNew: true,
-  },
-  {
-    type: "suspicious" as const,
-    title: "Suspicious vehicle circling area",
-    location: "Independence Ave, Windhoek",
-    time: "30 min ago",
-    distance: "1.2 km",
-  },
-  {
-    type: "assault" as const,
-    title: "Assault reported near bus stop",
-    location: "Wernhil Park",
-    time: "45 min ago",
-    distance: "1.8 km",
-  },
-  {
-    type: "safe" as const,
-    title: "Suspect apprehended - Area safe",
-    location: "Maerua Mall",
-    time: "1 hour ago",
-    distance: "2.1 km",
-  },
-  {
-    type: "robbery" as const,
-    title: "Vehicle break-in reported",
-    location: "Grove Mall parking",
-    time: "2 hours ago",
-    distance: "3.5 km",
-  },
-];
+const alertTypes = ["all", "panic", "amber", "robbery", "assault", "suspicious", "accident"];
 
 const Alerts = () => {
+  const { alerts, loading } = useAlerts();
+  const [selectedType, setSelectedType] = useState("all");
+
+  const filteredAlerts = selectedType === "all" 
+    ? alerts 
+    : alerts.filter((a) => a.type === selectedType);
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <Header title="Alerts" />
@@ -61,7 +26,7 @@ const Alerts = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
-              {mockAlerts.length} alerts nearby
+              {filteredAlerts.length} alerts
             </span>
           </div>
           <motion.button
@@ -75,36 +40,65 @@ const Alerts = () => {
 
         {/* Filter Pills */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {["All", "Robbery", "Suspicious", "Assault", "Amber"].map((filter, i) => (
+          {alertTypes.map((type) => (
             <button
-              key={filter}
+              key={type}
+              onClick={() => setSelectedType(type)}
               className={`
                 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap
-                transition-colors
-                ${i === 0 
-                  ? "bg-primary text-primary-foreground" 
+                transition-colors capitalize
+                ${selectedType === type
+                  ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                 }
               `}
             >
-              {filter}
+              {type}
             </button>
           ))}
         </div>
 
         {/* Alerts List */}
-        <div className="space-y-3">
-          {mockAlerts.map((alert, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <AlertCard {...alert} />
-            </motion.div>
-          ))}
-        </div>
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-24 bg-secondary/50 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : filteredAlerts.length > 0 ? (
+          <div className="space-y-3">
+            {filteredAlerts.map((alert, index) => (
+              <motion.div
+                key={alert.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <AlertCard
+                  type={alert.type as any}
+                  title={`${alert.type.charAt(0).toUpperCase() + alert.type.slice(1)} alert ${
+                    alert.description ? `- ${alert.description}` : ""
+                  }`}
+                  location={`${alert.latitude.toFixed(4)}, ${alert.longitude.toFixed(4)}`}
+                  time={formatDistanceToNow(new Date(alert.created_at), { addSuffix: true })}
+                  isNew={alert.status === "active"}
+                />
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto bg-secondary rounded-full flex items-center justify-center mb-4">
+              <Filter className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-semibold text-foreground">No alerts found</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {selectedType === "all" 
+                ? "Your community is safe! No alerts have been reported."
+                : `No ${selectedType} alerts found.`}
+            </p>
+          </div>
+        )}
       </main>
 
       <BottomNav />
