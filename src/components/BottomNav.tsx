@@ -1,13 +1,13 @@
 import { motion } from "framer-motion";
-import { Home, MapPin, Bell, MessageCircle, User } from "lucide-react";
+import { MapPin, Bell, Heart, Home, Phone } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
 const navItems = [
-  { icon: Home, label: "Home", path: "/" },
   { icon: MapPin, label: "Map", path: "/map" },
   { icon: Bell, label: "Alerts", path: "/alerts" },
-  { icon: MessageCircle, label: "Chat", path: "/chat" },
-  { icon: User, label: "Profile", path: "/profile" },
+  { icon: Heart, label: "Look After", path: "/look-after-me" },
+  { icon: Home, label: "Home", path: "/" },
+  { icon: Phone, label: "Authorities", path: "/authorities" },
 ];
 
 export const BottomNav = () => {

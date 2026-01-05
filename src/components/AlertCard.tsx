@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { AlertTriangle, MapPin, Clock, ChevronRight } from "lucide-react";
 
-export type AlertType = "robbery" | "suspicious" | "assault" | "amber" | "safe";
+export type AlertType = "panic" | "amber" | "robbery" | "suspicious" | "assault" | "accident" | "other" | "safe";
 
 interface AlertCardProps {
   type: AlertType;
@@ -13,6 +13,16 @@ interface AlertCardProps {
 }
 
 const alertStyles: Record<AlertType, { bg: string; icon: string; label: string }> = {
+  panic: {
+    bg: "bg-destructive/10 border-destructive/30",
+    icon: "bg-destructive text-destructive-foreground",
+    label: "Panic",
+  },
+  amber: {
+    bg: "bg-warning/10 border-warning/30",
+    icon: "bg-warning text-warning-foreground",
+    label: "Amber Alert",
+  },
   robbery: {
     bg: "bg-destructive/10 border-destructive/30",
     icon: "bg-destructive text-destructive-foreground",
@@ -28,10 +38,15 @@ const alertStyles: Record<AlertType, { bg: string; icon: string; label: string }
     icon: "bg-destructive text-destructive-foreground",
     label: "Assault",
   },
-  amber: {
+  accident: {
     bg: "bg-warning/10 border-warning/30",
     icon: "bg-warning text-warning-foreground",
-    label: "Amber Alert",
+    label: "Accident",
+  },
+  other: {
+    bg: "bg-secondary border-border",
+    icon: "bg-secondary text-secondary-foreground",
+    label: "Other",
   },
   safe: {
     bg: "bg-success/10 border-success/30",
@@ -48,7 +63,7 @@ export const AlertCard = ({
   distance,
   isNew,
 }: AlertCardProps) => {
-  const style = alertStyles[type];
+  const style = alertStyles[type] || alertStyles.other;
 
   return (
     <motion.div
@@ -63,7 +78,7 @@ export const AlertCard = ({
     >
       {isNew && (
         <span className="absolute top-3 right-3 px-2 py-0.5 text-[10px] font-bold uppercase bg-panic text-destructive-foreground rounded-full">
-          New
+          Active
         </span>
       )}
 
@@ -79,12 +94,12 @@ export const AlertCard = ({
             </span>
           </div>
 
-          <h3 className="font-semibold text-foreground truncate">{title}</h3>
+          <h3 className="font-semibold text-foreground text-sm line-clamp-2">{title}</h3>
 
           <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5" />
-              <span className="truncate">{location}</span>
+              <span className="truncate text-xs">{location}</span>
             </div>
             {distance && (
               <span className="text-xs px-2 py-0.5 bg-secondary rounded-full">
