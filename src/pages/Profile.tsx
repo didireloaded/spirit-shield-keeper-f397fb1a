@@ -3,117 +3,201 @@ import { motion } from "framer-motion";
 import {
   User,
   Shield,
-  MapPin,
-  Bell,
+  MessageCircle,
   Phone,
-  Settings,
-  ChevronRight,
   LogOut,
   Users,
-  Eye,
+  Bell,
+  Edit,
+  ArrowLeft,
+  Share2,
+  AlertTriangle,
+  Mail,
 } from "lucide-react";
-import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWatchers } from "@/hooks/useWatchers";
+import { useAlerts } from "@/hooks/useAlerts";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-const menuItems = [
-  {
-    icon: Shield,
-    label: "Safety Status",
-    description: "Currently: Safe",
-    color: "text-success",
-    path: "/settings",
-  },
-  {
-    icon: Users,
-    label: "My Watchers",
-    description: "Manage trusted contacts",
-    color: "text-primary",
-    path: "/watchers",
-  },
-  {
-    icon: MapPin,
-    label: "My Locations",
-    description: "Home, Work, Favorites",
-    color: "text-primary",
-    path: "/settings",
-  },
-  {
-    icon: Phone,
-    label: "Emergency Contacts",
-    description: "Quick dial numbers",
-    color: "text-warning",
-    path: "/authorities",
-  },
-  {
-    icon: Eye,
-    label: "Privacy & Ghost Mode",
-    description: "Control your visibility",
-    color: "text-muted-foreground",
-    path: "/settings",
-  },
-  {
-    icon: Bell,
-    label: "Notifications",
-    description: "All enabled",
-    color: "text-primary",
-    path: "/settings",
-  },
-  {
-    icon: Settings,
-    label: "Settings",
-    description: "Account, Help, About",
-    color: "text-muted-foreground",
-    path: "/settings",
-  },
-];
+interface Profile {
+  id: string;
+  full_name: string | null;
+  username: string | null;
+  phone: string | null;
+  region: string | null;
+  avatar_url: string | null;
+}
 
 const Profile = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { myWatchers, watchingMe } = useWatchers();
+  const { alerts } = useAlerts();
   const { permission, requestPermission } = usePushNotifications();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [activeTab, setActiveTab] = useState<"alerts" | "messages" | "contacts" | "emergency">("alerts");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: "",
+    username: "",
+    phone: "",
+  });
+
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
+
+  const fetchProfile = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+    
+    if (data) {
+      setProfile(data);
+      setEditForm({
+        full_name: data.full_name || "",
+        username: data.username || "",
+        phone: data.phone || "",
+      });
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: editForm.full_name,
+        username: editForm.username,
+        phone: editForm.phone,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      toast.error("Failed to update profile");
+    } else {
+      toast.success("Profile updated!");
+      setIsEditing(false);
+      fetchProfile();
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
   };
 
+  const myAlerts = alerts.filter(a => a.user_id === user?.id);
+  const acceptedWatchers = myWatchers.filter(w => w.status === "accepted");
+
   return (
     <div className="min-h-screen bg-background pb-24">
-      <Header title="Profile" />
+      {/* Hero Cover Section */}
+      <div className="relative h-48 bg-gradient-to-br from-zinc-800 to-zinc-900">
+        {/* Back Button */}
+        <button 
+          onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 z-10 p-2 rounded-full bg-black/30 hover:bg-black/50 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5 text-white" />
+        </button>
+        
+        {/* Share Button */}
+        <button className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/30 hover:bg-black/50 transition-colors">
+          <Share2 className="w-5 h-5 text-white" />
+        </button>
 
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Profile Card */}
+        {/* Cover Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+      </div>
+
+      <main className="max-w-lg mx-auto px-4 -mt-12 space-y-6 relative z-10">
+        {/* Profile Info */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-card border border-border rounded-2xl p-6"
         >
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full gradient-guardian flex items-center justify-center">
-              <User className="w-10 h-10 text-primary-foreground" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold">{user?.email?.split("@")[0] || "User"}</h2>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="px-2 py-0.5 bg-success/10 text-success text-xs font-medium rounded-full safe-glow">
-                  ● Safe
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Windhoek, Namibia
-                </span>
-              </div>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold">
+            {profile?.full_name || user?.email?.split("@")[0] || "User"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            SafeGuard Member {profile?.username && `• ${profile.username}`}
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Keeping {profile?.region || "Namibia"} safe, one alert at a time. Part of the SafeGuard community dedicated to emergency response and community safety.
+          </p>
+        </motion.div>
 
-          <button className="w-full mt-4 py-2.5 border border-primary text-primary font-medium rounded-xl hover:bg-primary/5 transition-colors">
-            Edit Profile
+        {/* Quick Action Buttons */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="flex gap-3"
+        >
+          <button
+            onClick={() => setIsEditing(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-full hover:bg-secondary transition-colors"
+          >
+            <Edit className="w-4 h-4" />
+            <span className="text-sm font-medium">Edit Profile</span>
           </button>
+          <button
+            onClick={() => navigate("/chat")}
+            className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-full hover:bg-secondary transition-colors"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span className="text-sm font-medium">Messages</span>
+          </button>
+          <button
+            onClick={() => navigate("/authorities")}
+            className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-full hover:bg-secondary transition-colors"
+          >
+            <Phone className="w-4 h-4" />
+            <span className="text-sm font-medium">Emergency</span>
+          </button>
+        </motion.div>
+
+        {/* Stats Tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-4 bg-card border border-border rounded-xl overflow-hidden"
+        >
+          {[
+            { key: "alerts", icon: Shield, label: "Alerts", value: myAlerts.length },
+            { key: "messages", icon: MessageCircle, label: "Messages", value: 0 },
+            { key: "contacts", icon: Users, label: "Contacts", value: acceptedWatchers.length },
+            { key: "emergency", icon: Phone, label: "Emergency", value: 0 },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as typeof activeTab)}
+                className={`p-4 flex flex-col items-center gap-1 transition-colors ${
+                  isActive ? "bg-secondary" : "hover:bg-secondary/50"
+                }`}
+              >
+                <Icon className={`w-5 h-5 ${isActive ? "text-destructive" : "text-muted-foreground"}`} />
+                <span className={`text-xs ${isActive ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
         </motion.div>
 
         {/* Notification Permission Banner */}
@@ -121,7 +205,7 @@ const Profile = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
+            transition={{ delay: 0.15 }}
             className="bg-warning/10 border border-warning/30 rounded-xl p-4"
           >
             <div className="flex items-center justify-between">
@@ -142,77 +226,175 @@ const Profile = () => {
           </motion.div>
         )}
 
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-3 gap-3"
-        >
-          {[
-            { label: "Watchers", value: myWatchers.length.toString() },
-            { label: "Watching", value: watchingMe.filter(w => w.status === "accepted").length.toString() },
-            { label: "Reports", value: "0" },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="bg-card border border-border rounded-xl p-4 text-center"
-            >
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
-            </div>
-          ))}
-        </motion.div>
-
-        {/* Menu Items */}
+        {/* Contact Information */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-card border border-border rounded-2xl overflow-hidden"
+          className="bg-card border border-border rounded-xl p-4 space-y-3"
         >
-          {menuItems.map((item, index) => {
-            const Icon = item.icon;
-            return (
-              <motion.button
-                key={item.label}
-                onClick={() => navigate(item.path)}
-                whileHover={{ x: 4 }}
-                className={`
-                  w-full p-4 flex items-center gap-4 text-left
-                  hover:bg-secondary/50 transition-colors
-                  ${index < menuItems.length - 1 ? "border-b border-border" : ""}
-                `}
+          <h3 className="font-semibold">Contact Information</h3>
+          <div className="flex items-center gap-3 text-sm">
+            <Phone className="w-4 h-4 text-muted-foreground" />
+            <span className={profile?.phone ? "text-foreground" : "text-muted-foreground"}>
+              {profile?.phone || "No phone number"}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <Mail className="w-4 h-4 text-muted-foreground" />
+            <span className="text-foreground">{user?.email}</span>
+          </div>
+        </motion.div>
+
+        {/* Emergency Contacts */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="bg-card border border-border rounded-xl p-4 space-y-3"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            <h3 className="font-semibold">Emergency Contacts</h3>
+          </div>
+          {acceptedWatchers.length > 0 ? (
+            <div className="space-y-2">
+              {acceptedWatchers.slice(0, 3).map((watcher) => (
+                <div key={watcher.id} className="flex items-center gap-3 text-sm">
+                  <Phone className="w-4 h-4 text-muted-foreground" />
+                  <span>{watcher.profile?.full_name || watcher.profile?.phone || "Watcher"}</span>
+                </div>
+              ))}
+              {acceptedWatchers.length > 3 && (
+                <button
+                  onClick={() => navigate("/watchers")}
+                  className="text-xs text-primary hover:underline"
+                >
+                  +{acceptedWatchers.length - 3} more contacts
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              No emergency contacts added.{" "}
+              <button
+                onClick={() => navigate("/watchers")}
+                className="text-primary hover:underline"
               >
-                <div className={`${item.color}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              </motion.button>
-            );
-          })}
+                Add watchers
+              </button>
+            </div>
+          )}
+        </motion.div>
+
+        {/* My Activity Summary */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-card border border-border rounded-xl p-4 space-y-3"
+        >
+          <h3 className="font-semibold">Activity Summary</h3>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="p-3 bg-secondary rounded-lg">
+              <p className="text-xl font-bold text-destructive">{myAlerts.filter(a => a.type === "panic").length}</p>
+              <p className="text-xs text-muted-foreground">Panic Alerts</p>
+            </div>
+            <div className="p-3 bg-secondary rounded-lg">
+              <p className="text-xl font-bold text-warning">{myAlerts.filter(a => a.type === "amber").length}</p>
+              <p className="text-xs text-muted-foreground">Amber Alerts</p>
+            </div>
+            <div className="p-3 bg-secondary rounded-lg">
+              <p className="text-xl font-bold text-primary">{watchingMe.filter(w => w.status === "accepted").length}</p>
+              <p className="text-xs text-muted-foreground">Watching Me</p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Sign Out */}
         <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.35 }}
           onClick={handleSignOut}
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
-          className="w-full p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center justify-center gap-2 text-destructive font-medium hover:bg-destructive/20 transition-colors"
+          className="w-full p-4 bg-card border border-border rounded-xl flex items-center justify-center gap-2 text-destructive font-medium hover:bg-destructive/10 transition-colors"
         >
           <LogOut className="w-5 h-5" />
           Sign Out
         </motion.button>
       </main>
+
+      {/* Edit Profile Modal */}
+      {isEditing && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4"
+          onClick={() => setIsEditing(false)}
+        >
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-card rounded-2xl p-6 space-y-4"
+          >
+            <h2 className="text-xl font-bold">Edit Profile</h2>
+            
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Full Name</label>
+              <input
+                type="text"
+                value={editForm.full_name}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                placeholder="Your full name"
+                className="w-full px-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Username</label>
+              <input
+                type="text"
+                value={editForm.username}
+                onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                placeholder="@username"
+                className="w-full px-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Phone Number</label>
+              <input
+                type="tel"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                placeholder="+264..."
+                className="w-full px-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setIsEditing(false)}
+                className="flex-1 py-3 bg-secondary hover:bg-secondary/80 rounded-xl font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                className="flex-1 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-medium transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       <BottomNav />
     </div>
