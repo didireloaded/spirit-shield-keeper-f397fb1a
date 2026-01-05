@@ -2,127 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
-/* The Guardian - Community Safety App Design System
-   Inspired by: Namibian flag colors, emergency services, trust & safety
+/* The Guardian - Dark-first Design System
+   Zinc-based dark theme for safety app
    All colors in HSL format
 */
 
 @layer base {
   :root {
-    /* Core backgrounds */
-    --background: 220 25% 97%;
-    --foreground: 220 30% 10%;
+    /* Core backgrounds - Dark zinc */
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
 
     /* Card surfaces */
-    --card: 0 0% 100%;
-    --card-foreground: 220 30% 10%;
+    --card: 240 6% 10%;
+    --card-foreground: 0 0% 98%;
 
     /* Popover */
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 10%;
+    --popover: 240 6% 10%;
+    --popover-foreground: 0 0% 98%;
 
-    /* Primary - Deep Guardian Blue (Trust & Safety) */
-    --primary: 210 55% 25%;
+    /* Primary - Blue */
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Soft slate */
-    --secondary: 220 15% 92%;
-    --secondary-foreground: 220 30% 20%;
+    /* Secondary - Zinc 800 */
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 0 0% 90%;
 
     /* Muted elements */
-    --muted: 220 15% 94%;
-    --muted-foreground: 220 10% 45%;
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 65%;
 
-    /* Accent - Namibian Gold */
-    --accent: 45 95% 50%;
-    --accent-foreground: 220 30% 10%;
+    /* Accent - Purple */
+    --accent: 263 70% 50%;
+    --accent-foreground: 0 0% 100%;
 
-    /* Alert/Destructive - Emergency Red */
-    --destructive: 0 85% 55%;
+    /* Alert/Destructive - Red */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Success/Safe - Guardian Green */
-    --success: 145 65% 40%;
+    /* Success/Safe - Green */
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning - Amber Alert */
-    --warning: 35 95% 55%;
-    --warning-foreground: 220 30% 10%;
+    /* Warning - Amber/Yellow */
+    --warning: 45 93% 47%;
+    --warning-foreground: 0 0% 10%;
 
     /* Borders and inputs */
-    --border: 220 15% 88%;
-    --input: 220 15% 88%;
-    --ring: 210 55% 35%;
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 217 91% 60%;
 
     --radius: 0.75rem;
 
     /* Sidebar */
-    --sidebar-background: 220 25% 97%;
-    --sidebar-foreground: 220 30% 20%;
-    --sidebar-primary: 210 55% 25%;
+    --sidebar-background: 240 10% 4%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 92%;
-    --sidebar-accent-foreground: 220 30% 20%;
-    --sidebar-border: 220 15% 88%;
-    --sidebar-ring: 210 55% 35%;
+    --sidebar-accent: 240 4% 16%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 240 4% 16%;
+    --sidebar-ring: 217 91% 60%;
 
     /* Guardian-specific tokens */
-    --panic: 0 85% 50%;
-    --panic-glow: 0 85% 60%;
-    --safe: 145 65% 45%;
-    --safe-glow: 145 65% 55%;
-    --alert-amber: 35 95% 55%;
-    --guardian-gold: 45 95% 50%;
-  }
-
-  .dark {
-    --background: 220 30% 8%;
-    --foreground: 220 10% 95%;
-
-    --card: 220 30% 12%;
-    --card-foreground: 220 10% 95%;
-
-    --popover: 220 30% 12%;
-    --popover-foreground: 220 10% 95%;
-
-    --primary: 210 55% 55%;
-    --primary-foreground: 220 30% 10%;
-
-    --secondary: 220 25% 18%;
-    --secondary-foreground: 220 10% 90%;
-
-    --muted: 220 25% 18%;
-    --muted-foreground: 220 10% 60%;
-
-    --accent: 45 95% 55%;
-    --accent-foreground: 220 30% 10%;
-
-    --destructive: 0 75% 50%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 145 60% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 35 90% 50%;
-    --warning-foreground: 220 30% 10%;
-
-    --border: 220 25% 20%;
-    --input: 220 25% 20%;
-    --ring: 210 55% 55%;
-
-    --sidebar-background: 220 30% 10%;
-    --sidebar-foreground: 220 10% 90%;
-    --sidebar-primary: 210 55% 55%;
-    --sidebar-primary-foreground: 220 30% 10%;
-    --sidebar-accent: 220 25% 18%;
-    --sidebar-accent-foreground: 220 10% 90%;
-    --sidebar-border: 220 25% 20%;
-    --sidebar-ring: 210 55% 55%;
-
-    --panic: 0 80% 55%;
-    --panic-glow: 0 80% 65%;
-    --safe: 145 60% 50%;
-    --safe-glow: 145 60% 60%;
+    --panic: 0 84% 60%;
+    --panic-glow: 0 84% 70%;
+    --safe: 142 71% 45%;
+    --safe-glow: 142 71% 55%;
+    --alert-amber: 45 93% 47%;
+    --guardian-gold: 45 93% 47%;
   }
 }
 
@@ -149,6 +99,20 @@
     }
     50% {
       box-shadow: 0 0 0 20px hsl(var(--panic) / 0);
+    }
+  }
+
+  /* Recording pulse */
+  .recording-pulse {
+    animation: recording-pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes recording-pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
     }
   }
 
@@ -195,7 +159,7 @@
     background: linear-gradient(
       135deg,
       hsl(var(--primary)) 0%,
-      hsl(210 55% 35%) 100%
+      hsl(217 91% 50%) 100%
     );
   }
 
@@ -203,7 +167,7 @@
     background: linear-gradient(
       135deg,
       hsl(var(--panic)) 0%,
-      hsl(0 75% 45%) 100%
+      hsl(0 75% 50%) 100%
     );
   }
 
@@ -211,13 +175,13 @@
     background: linear-gradient(
       135deg,
       hsl(var(--safe)) 0%,
-      hsl(145 55% 35%) 100%
+      hsl(142 60% 35%) 100%
     );
   }
 
   /* Glass effect */
   .glass {
-    background: hsl(var(--background) / 0.8);
+    background: hsl(var(--background) / 0.9);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
@@ -231,7 +195,7 @@
 @layer utilities {
   /* Text gradient */
   .text-gradient-guardian {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(210 55% 45%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(217 91% 50%) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

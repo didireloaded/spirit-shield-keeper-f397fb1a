@@ -1,27 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Phone, Mail, MapPin, Building2, Flame, Heart, Shield, HandHelping } from "lucide-react";
-import { Header } from "@/components/Header";
+import { Phone, Shield, Flame, Heart } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
-
-const typeIcons: Record<string, any> = {
-  police: Shield,
-  fire: Flame,
-  medical: Heart,
-  helpline: Phone,
-  ngo: HandHelping,
-  security: Building2,
-};
-
-const typeColors: Record<string, string> = {
-  police: "bg-primary text-primary-foreground",
-  fire: "bg-destructive text-destructive-foreground",
-  medical: "bg-success text-success-foreground",
-  helpline: "bg-warning text-warning-foreground",
-  ngo: "bg-accent text-accent-foreground",
-  security: "bg-secondary text-secondary-foreground",
-};
 
 interface AuthorityContact {
   id: string;
@@ -29,7 +10,6 @@ interface AuthorityContact {
   type: string;
   phone: string | null;
   email: string | null;
-  address: string | null;
   region: string;
   description: string | null;
   is_emergency: boolean;
@@ -38,9 +18,6 @@ interface AuthorityContact {
 const Authorities = () => {
   const [contacts, setContacts] = useState<AuthorityContact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
 
   useEffect(() => {
     fetchContacts();
@@ -59,151 +36,188 @@ const Authorities = () => {
     setLoading(false);
   };
 
-  const regions = [...new Set(contacts.map((c) => c.region))];
-  const types = [...new Set(contacts.map((c) => c.type))];
+  const policeContacts = contacts.filter(c => c.type === "police");
+  const fireContacts = contacts.filter(c => c.type === "fire");
+  const helplineContacts = contacts.filter(c => c.type === "helpline" || c.type === "ngo");
 
-  const filteredContacts = contacts.filter((contact) => {
-    const matchesSearch =
-      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = !selectedType || contact.type === selectedType;
-    const matchesRegion = !selectedRegion || contact.region === selectedRegion;
-    return matchesSearch && matchesType && matchesRegion;
-  });
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="space-y-3">
+              <div className="h-8 w-32 bg-card rounded animate-pulse" />
+              <div className="h-32 bg-card rounded-xl animate-pulse" />
+            </div>
+          ))}
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <Header title="Authorities" />
-
-      <main className="max-w-lg mx-auto px-4 py-6">
-        {/* Search */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search emergency contacts..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-          <button
-            onClick={() => setSelectedType(null)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-              !selectedType
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground"
-            }`}
-          >
-            All
-          </button>
-          {types.map((type) => (
-            <button
-              key={type}
-              onClick={() => setSelectedType(type === selectedType ? null : type)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors capitalize ${
-                selectedType === type
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground"
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-
-        {/* Region selector */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          <button
-            onClick={() => setSelectedRegion(null)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-              !selectedRegion
-                ? "bg-accent text-accent-foreground"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            All Regions
-          </button>
-          {regions.map((region) => (
-            <button
-              key={region}
-              onClick={() => setSelectedRegion(region === selectedRegion ? null : region)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                selectedRegion === region
-                  ? "bg-accent text-accent-foreground"
-                  : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {region}
-            </button>
-          ))}
-        </div>
-
-        {/* Contacts List */}
-        {loading ? (
+      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        {/* Police */}
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <Shield className="w-6 h-6 text-primary" />
+            <h2 className="text-lg font-semibold">Police</h2>
+          </div>
           <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-24 bg-secondary/50 rounded-xl animate-pulse" />
+            {policeContacts.map((contact, index) => (
+              <motion.div
+                key={contact.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-card rounded-xl p-4 border border-primary/30"
+              >
+                <h3 className="font-semibold mb-1">{contact.name}</h3>
+                <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5" />
+                  {contact.phone}
+                </p>
+                <div className="flex gap-2">
+                  <a
+                    href={`tel:${contact.phone}`}
+                    className="flex-1 bg-primary hover:bg-primary/90 py-2 rounded-lg text-center text-sm font-medium text-primary-foreground transition-colors"
+                  >
+                    Call Now
+                  </a>
+                  {contact.email && (
+                    <a
+                      href={`mailto:${contact.email}`}
+                      className="flex-1 bg-secondary hover:bg-secondary/80 py-2 rounded-lg text-center text-sm font-medium transition-colors"
+                    >
+                      Email
+                    </a>
+                  )}
+                </div>
+              </motion.div>
             ))}
           </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredContacts.map((contact, index) => {
-              const Icon = typeIcons[contact.type] || Shield;
-              const colorClass = typeColors[contact.type] || typeColors.security;
+        </section>
 
-              return (
+        {/* Fire Brigade */}
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <Flame className="w-6 h-6 text-destructive" />
+            <h2 className="text-lg font-semibold">Fire Brigade</h2>
+          </div>
+          <div className="space-y-3">
+            {fireContacts.length > 0 ? (
+              fireContacts.map((contact, index) => (
                 <motion.div
                   key={contact.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                  className={`p-4 rounded-xl border ${
-                    contact.is_emergency
-                      ? "bg-destructive/5 border-destructive/20"
-                      : "bg-card border-border"
-                  }`}
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-card rounded-xl p-4 border border-destructive/30"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg ${colorClass}`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm truncate">{contact.name}</h3>
-                        {contact.is_emergency && (
-                          <span className="px-1.5 py-0.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded uppercase">
-                            Emergency
-                          </span>
-                        )}
-                      </div>
-                      {contact.description && (
-                        <p className="text-xs text-muted-foreground mt-1">{contact.description}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {contact.region}
-                        </div>
-                      </div>
-                    </div>
-                    {contact.phone && (
+                  <h3 className="font-semibold mb-1">{contact.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5" />
+                    {contact.phone}
+                  </p>
+                  <div className="flex gap-2">
+                    <a
+                      href={`tel:${contact.phone}`}
+                      className="flex-1 bg-destructive hover:bg-destructive/90 py-2 rounded-lg text-center text-sm font-medium text-destructive-foreground transition-colors"
+                    >
+                      Call Now
+                    </a>
+                    {contact.email && (
                       <a
-                        href={`tel:${contact.phone}`}
-                        className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors flex-shrink-0"
+                        href={`mailto:${contact.email}`}
+                        className="flex-1 bg-secondary hover:bg-secondary/80 py-2 rounded-lg text-center text-sm font-medium transition-colors"
                       >
-                        Call
+                        Email
                       </a>
                     )}
                   </div>
                 </motion.div>
-              );
-            })}
+              ))
+            ) : (
+              <div className="bg-card rounded-xl p-4 border border-destructive/30">
+                <h3 className="font-semibold mb-1">Windhoek Fire</h3>
+                <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5" />
+                  +264 61 211 111
+                </p>
+                <a
+                  href="tel:+26461211111"
+                  className="block w-full bg-destructive hover:bg-destructive/90 py-2 rounded-lg text-center text-sm font-medium text-destructive-foreground transition-colors"
+                >
+                  Call Now
+                </a>
+              </div>
+            )}
           </div>
-        )}
+        </section>
+
+        {/* Helplines */}
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <Heart className="w-6 h-6 text-pink-400" />
+            <h2 className="text-lg font-semibold">Helplines</h2>
+          </div>
+          <div className="space-y-3">
+            {helplineContacts.length > 0 ? (
+              helplineContacts.map((contact, index) => (
+                <motion.div
+                  key={contact.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-card rounded-xl p-4 border border-pink-500/30"
+                >
+                  <h3 className="font-semibold mb-1">{contact.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5" />
+                    {contact.phone}
+                  </p>
+                  <a
+                    href={`tel:${contact.phone}`}
+                    className="block w-full bg-pink-600 hover:bg-pink-700 py-2 rounded-lg text-center text-sm font-medium text-white transition-colors"
+                  >
+                    Call Now
+                  </a>
+                </motion.div>
+              ))
+            ) : (
+              <>
+                <div className="bg-card rounded-xl p-4 border border-pink-500/30">
+                  <h3 className="font-semibold mb-1">LifeLine/ChildLine</h3>
+                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5" />
+                    +264 61 226 889 • Emergency: 116
+                  </p>
+                  <a
+                    href="tel:116"
+                    className="block w-full bg-pink-600 hover:bg-pink-700 py-2 rounded-lg text-center text-sm font-medium text-white transition-colors"
+                  >
+                    Call Now
+                  </a>
+                </div>
+                <div className="bg-card rounded-xl p-4 border border-pink-500/30">
+                  <h3 className="font-semibold mb-1">GBV Helpline</h3>
+                  <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5" />
+                    106
+                  </p>
+                  <a
+                    href="tel:106"
+                    className="block w-full bg-pink-600 hover:bg-pink-700 py-2 rounded-lg text-center text-sm font-medium text-white transition-colors"
+                  >
+                    Call Now
+                  </a>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
       </main>
 
       <BottomNav />
