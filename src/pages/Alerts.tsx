@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, Shield, Mic, X, Camera, Car, Upload } from "lucide-react";
+import { AlertTriangle, Shield, Mic, X, Camera, Car, Upload, ImageIcon } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAudioRecording } from "@/hooks/useAudioRecording";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
@@ -12,6 +13,11 @@ const Alerts = () => {
   const { alerts, loading, createAlert } = useAlerts();
   const { isRecording, startRecording, stopRecording } = useAudioRecording();
   const { latitude, longitude } = useGeolocation();
+  const { uploading: photoUploading, previewUrl: amberPhotoPreview, selectAndUpload: selectAmberPhoto, photoUrl: amberPhotoUrl, clearPhoto: clearAmberPhoto } = usePhotoUpload({
+    bucket: "post-images",
+    onSuccess: () => toast.success("Photo uploaded successfully"),
+    onError: () => toast.error("Failed to upload photo"),
+  });
   
   const [recordingTime, setRecordingTime] = useState(0);
   const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
@@ -86,6 +92,7 @@ const Alerts = () => {
       amberFormData.vehicleMake && `Vehicle: ${amberFormData.vehicleMake}`,
       amberFormData.vehicleColor && `Color: ${amberFormData.vehicleColor}`,
       amberFormData.vehiclePlate && `Plate: ${amberFormData.vehiclePlate}`,
+      amberPhotoUrl && `Photo: ${amberPhotoUrl}`,
     ]
       .filter(Boolean)
       .join(". ");
@@ -109,8 +116,9 @@ const Alerts = () => {
         vehicleColor: "",
         vehiclePlate: "",
       });
+      clearAmberPhoto();
     }
-  }, [latitude, longitude, amberFormData, startRecording, createAlert]);
+  }, [latitude, longitude, amberFormData, amberPhotoUrl, startRecording, createAlert, clearAmberPhoto]);
 
   const activeAlerts = alerts.filter((a) => a.status === "active");
 
@@ -206,10 +214,37 @@ const Alerts = () => {
                   </div>
 
                   {/* Photo Upload */}
-                  <button className="w-full py-3 bg-secondary hover:bg-secondary/80 rounded-xl flex items-center justify-center gap-2 transition-colors">
-                    <Camera className="w-5 h-5" />
-                    <span className="text-sm font-medium">Upload Photo</span>
-                  </button>
+                  {amberPhotoPreview ? (
+                    <div className="relative">
+                      <img
+                        src={amberPhotoPreview}
+                        alt="Amber alert photo"
+                        className="w-full h-48 object-cover rounded-xl"
+                      />
+                      <button
+                        onClick={clearAmberPhoto}
+                        className="absolute top-2 right-2 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                      >
+                        <X className="w-4 h-4 text-white" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={selectAmberPhoto}
+                      disabled={photoUploading}
+                      className="w-full py-4 bg-secondary hover:bg-secondary/80 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors border-2 border-dashed border-border"
+                    >
+                      {photoUploading ? (
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Camera className="w-6 h-6 text-muted-foreground" />
+                          <span className="text-sm font-medium">Upload Photo of Missing Person</span>
+                          <span className="text-xs text-muted-foreground">Tap to take or select photo</span>
+                        </>
+                      )}
+                    </button>
+                  )}
 
                   {/* Outfit */}
                   <div>

@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   MapPin, Clock, Camera, Car, Users, ChevronRight, 
-  CheckCircle, AlertTriangle, Upload
+  CheckCircle, AlertTriangle, Upload, X, ImageIcon
 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { usePhotoUpload } from "@/hooks/usePhotoUpload";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 interface SafetySession {
@@ -21,6 +23,19 @@ interface SafetySession {
 const LookAfterMe = () => {
   const { user } = useAuth();
   const { latitude, longitude } = useGeolocation();
+  const navigate = useNavigate();
+  const { 
+    uploading: photoUploading, 
+    previewUrl: outfitPreview, 
+    selectAndUpload: selectOutfitPhoto, 
+    photoUrl: outfitPhotoUrl, 
+    clearPhoto: clearOutfitPhoto 
+  } = usePhotoUpload({
+    bucket: "outfit-photos",
+    onSuccess: () => toast.success("Outfit photo uploaded"),
+    onError: () => toast.error("Failed to upload photo"),
+  });
+  
   const [activeSession, setActiveSession] = useState<SafetySession | null>(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
@@ -103,6 +118,7 @@ const LookAfterMe = () => {
       destination_lat: latitude,
       destination_lng: longitude,
       outfit_description: formData.outfitDescription || null,
+      outfit_photo_url: outfitPhotoUrl || null,
       vehicle_name: formData.vehicleName || null,
       license_plate: formData.licensePlate || null,
       companion_phone: formData.companionPhone || null,
@@ -113,6 +129,7 @@ const LookAfterMe = () => {
       console.error(error);
     } else if (data) {
       setActiveSession(data);
+      clearOutfitPhoto();
       toast.success("🫶 Look After Me activated! Your watchers have been notified.");
     }
   };
@@ -307,10 +324,37 @@ const LookAfterMe = () => {
             </div>
 
             {/* Photo Upload */}
-            <button className="w-full py-3 bg-secondary hover:bg-secondary/80 rounded-xl flex items-center justify-center gap-2 transition-colors">
-              <Camera className="w-4 h-4" />
-              <span className="text-sm">Upload Full-Body Photo</span>
-            </button>
+            {outfitPreview ? (
+              <div className="relative">
+                <img
+                  src={outfitPreview}
+                  alt="Outfit photo"
+                  className="w-full h-48 object-cover rounded-xl"
+                />
+                <button
+                  onClick={clearOutfitPhoto}
+                  className="absolute top-2 right-2 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+                >
+                  <X className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={selectOutfitPhoto}
+                disabled={photoUploading}
+                className="w-full py-4 bg-secondary hover:bg-secondary/80 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors border-2 border-dashed border-border"
+              >
+                {photoUploading ? (
+                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Camera className="w-6 h-6 text-muted-foreground" />
+                    <span className="text-sm font-medium">Upload Full-Body Photo</span>
+                    <span className="text-xs text-muted-foreground">Helps identify you if needed</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {/* Vehicle Details */}
             <div className="p-4 bg-secondary/50 rounded-xl space-y-3">
@@ -352,14 +396,17 @@ const LookAfterMe = () => {
             </div>
 
             {/* Select Watchers */}
-            <button className="w-full p-4 bg-secondary hover:bg-secondary/80 rounded-xl flex items-center justify-between transition-colors">
+            <button 
+              onClick={() => navigate("/watchers")}
+              className="w-full p-4 bg-secondary hover:bg-secondary/80 rounded-xl flex items-center justify-between transition-colors"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                   <Users className="w-5 h-5 text-primary" />
                 </div>
                 <div className="text-left">
-                  <p className="font-medium text-sm">Select Watchers</p>
-                  <p className="text-xs text-muted-foreground">0 watchers selected</p>
+                  <p className="font-medium text-sm">Manage Watchers</p>
+                  <p className="text-xs text-muted-foreground">Add trusted contacts</p>
                 </div>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
