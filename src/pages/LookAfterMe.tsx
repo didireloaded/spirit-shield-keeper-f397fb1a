@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { 
   MapPin, Clock, Camera, Car, Users, ChevronRight, 
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -24,6 +25,7 @@ const LookAfterMe = () => {
   const { user } = useAuth();
   const { latitude, longitude } = useGeolocation();
   const navigate = useNavigate();
+  const { notifyTripStatus } = usePushNotifications();
   const { 
     uploading: photoUploading, 
     previewUrl: outfitPreview, 
@@ -47,6 +49,23 @@ const LookAfterMe = () => {
     licensePlate: "",
     companionPhone: "",
   });
+
+  // Notify watchers about trip status
+  const notifyWatchersAboutTrip = useCallback(async (status: "late" | "arrived" | "emergency") => {
+    if (!user) return;
+
+    // Get user profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .single();
+
+    const userName = profile?.full_name || "Someone you watch";
+    
+    // Notify via local notification (watchers would receive this through real-time in production)
+    notifyTripStatus(status, userName);
+  }, [user, notifyTripStatus]);
 
   // Fetch active session
   useEffect(() => {
@@ -145,6 +164,7 @@ const LookAfterMe = () => {
     if (error) {
       toast.error("Failed to update session");
     } else {
+      await notifyWatchersAboutTrip("arrived");
       setActiveSession(null);
       setFormData({
         destination: "",
@@ -168,7 +188,22 @@ const LookAfterMe = () => {
       .eq("id", activeSession.id);
 
     if (!error) {
+      await notifyWatchersAboutTrip("late");
       toast.info("⏰ Watchers notified that you're running late");
+    }
+  };
+
+  const handleEmergency = async () => {
+    if (!activeSession) return;
+
+    const { error } = await supabase
+      .from("safety_sessions")
+      .update({ status: "escalated" })
+      .eq("id", activeSession.id);
+
+    if (!error) {
+      await notifyWatchersAboutTrip("emergency");
+      toast.error("🚨 Emergency alert sent to all watchers!");
     }
   };
 
@@ -260,7 +295,10 @@ const LookAfterMe = () => {
             </div>
 
             {/* Emergency Button */}
-            <button className="w-full py-4 gradient-panic text-white font-bold rounded-xl shadow-panic flex items-center justify-center gap-2">
+            <button 
+              onClick={handleEmergency}
+              className="w-full py-4 gradient-panic text-white font-bold rounded-xl shadow-panic flex items-center justify-center gap-2"
+            >
               <AlertTriangle className="w-5 h-5" />
               Emergency - Alert Watchers
             </button>
