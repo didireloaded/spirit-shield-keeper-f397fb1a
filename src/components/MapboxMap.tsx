@@ -3,6 +3,16 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { supabase } from "@/integrations/supabase/client";
 
+interface RouteData {
+  id: string;
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+  destinationName?: string;
+  status?: string;
+}
+
 interface MapboxMapProps {
   onMapLoad?: (map: mapboxgl.Map) => void;
   onLocationUpdate?: (lat: number, lng: number) => void;
@@ -21,6 +31,7 @@ interface MapboxMapProps {
     type: string;
     status: string;
   }>;
+  routes?: RouteData[];
   onMapClick?: (lat: number, lng: number) => void;
   className?: string;
 }
@@ -43,12 +54,14 @@ export const MapboxMap = ({
   showUserLocation = true,
   markers = [],
   alerts = [],
+  routes = [],
   onMapClick,
   className = "",
 }: MapboxMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
+  const destinationMarkerRefs = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const markerRefs = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
@@ -224,6 +237,164 @@ export const MapboxMap = ({
       markerRefs.current.set(item.id, marker);
     });
   }, [markers, alerts, mapLoaded]);
+
+  // Draw routes for Look After Me trips
+  useEffect(() => {
+    if (!map.current || !mapLoaded || !mapboxToken) return;
+
+    const drawRoutes = async () => {
+      // Remove existing route layers and sources
+      routes.forEach((_, index) => {
+        const sourceId = `route-source-${index}`;
+        const layerId = `route-layer-${index}`;
+        const outlineLayerId = `route-outline-${index}`;
+        
+        if (map.current?.getLayer(layerId)) {
+          map.current.removeLayer(layerId);
+        }
+        if (map.current?.getLayer(outlineLayerId)) {
+          map.current.removeLayer(outlineLayerId);
+        }
+        if (map.current?.getSource(sourceId)) {
+          map.current.removeSource(sourceId);
+        }
+      });
+
+      // Clear destination markers
+      destinationMarkerRefs.current.forEach((marker) => marker.remove());
+      destinationMarkerRefs.current.clear();
+
+      // Draw new routes
+      for (let index = 0; index < routes.length; index++) {
+        const route = routes[index];
+        const sourceId = `route-source-${index}`;
+        const layerId = `route-layer-${index}`;
+        const outlineLayerId = `route-outline-${index}`;
+
+        try {
+          // Fetch route from Mapbox Directions API
+          const response = await fetch(
+            `https://api.mapbox.com/directions/v5/mapbox/driving/${route.startLng},${route.startLat};${route.endLng},${route.endLat}?geometries=geojson&overview=full&access_token=${mapboxToken}`
+          );
+          
+          const data = await response.json();
+          
+          if (data.routes && data.routes[0]) {
+            const routeGeometry = data.routes[0].geometry;
+
+            // Add route source
+            map.current?.addSource(sourceId, {
+              type: "geojson",
+              data: {
+                type: "Feature",
+                properties: {},
+                geometry: routeGeometry,
+              },
+            });
+
+            // Add route outline (for glow effect)
+            map.current?.addLayer({
+              id: outlineLayerId,
+              type: "line",
+              source: sourceId,
+              layout: {
+                "line-join": "round",
+                "line-cap": "round",
+              },
+              paint: {
+                "line-color": route.status === "late" ? "#F59E0B" : "#10B981",
+                "line-width": 8,
+                "line-opacity": 0.3,
+              },
+            });
+
+            // Add route line
+            map.current?.addLayer({
+              id: layerId,
+              type: "line",
+              source: sourceId,
+              layout: {
+                "line-join": "round",
+                "line-cap": "round",
+              },
+              paint: {
+                "line-color": route.status === "late" ? "#F59E0B" : "#10B981",
+                "line-width": 4,
+                "line-opacity": 0.9,
+              },
+            });
+
+            // Add destination marker
+            const destEl = document.createElement("div");
+            destEl.className = "destination-marker";
+            destEl.innerHTML = `
+              <div class="relative">
+                <div class="absolute -inset-2 bg-emerald-500/30 rounded-full animate-pulse"></div>
+                <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg border-2 border-white">
+                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+              </div>
+            `;
+
+            const destPopup = new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(`
+              <div class="p-3 text-sm">
+                <strong class="text-emerald-600">Destination</strong>
+                ${route.destinationName ? `<p class="text-gray-700 mt-1">${route.destinationName}</p>` : ""}
+                <p class="text-xs text-gray-500 mt-1">Look After Me Trip</p>
+              </div>
+            `);
+
+            const destMarker = new mapboxgl.Marker({ element: destEl })
+              .setLngLat([route.endLng, route.endLat])
+              .setPopup(destPopup)
+              .addTo(map.current!);
+
+            destinationMarkerRefs.current.set(route.id, destMarker);
+
+            // Fit map to show entire route
+            if (routes.length === 1) {
+              const bounds = new mapboxgl.LngLatBounds()
+                .extend([route.startLng, route.startLat])
+                .extend([route.endLng, route.endLat]);
+
+              map.current?.fitBounds(bounds, {
+                padding: { top: 100, bottom: 150, left: 50, right: 50 },
+                duration: 1000,
+              });
+            }
+          }
+        } catch (error) {
+          console.error("[Map] Error fetching route:", error);
+        }
+      }
+    };
+
+    if (routes.length > 0) {
+      drawRoutes();
+    } else {
+      // Clear routes if none exist
+      for (let i = 0; i < 10; i++) {
+        const sourceId = `route-source-${i}`;
+        const layerId = `route-layer-${i}`;
+        const outlineLayerId = `route-outline-${i}`;
+        
+        if (map.current?.getLayer(layerId)) {
+          map.current.removeLayer(layerId);
+        }
+        if (map.current?.getLayer(outlineLayerId)) {
+          map.current.removeLayer(outlineLayerId);
+        }
+        if (map.current?.getSource(sourceId)) {
+          map.current.removeSource(sourceId);
+        }
+      }
+      destinationMarkerRefs.current.forEach((marker) => marker.remove());
+      destinationMarkerRefs.current.clear();
+    }
+  }, [routes, mapLoaded, mapboxToken]);
 
   // Center on user
   const centerOnUser = useCallback(() => {
