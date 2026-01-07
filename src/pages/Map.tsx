@@ -508,115 +508,134 @@ const Map = () => {
           )}
         </AnimatePresence>
 
-        {/* Report Incident Panel */}
+        {/* Report Incident Modal */}
         <AnimatePresence>
-          {showAddPin && (
+          {showAddPin && selectedLocation && (
             <motion.div
-              initial={{ opacity: 0, y: 100 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 100 }}
-              className="absolute bottom-20 left-0 right-0 z-20 px-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) handleCancelReport();
+              }}
             >
-              <div className="glass rounded-2xl p-5 shadow-lg">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-card rounded-2xl shadow-2xl max-w-md w-full border border-border overflow-hidden"
+              >
                 {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-warning/20 flex items-center justify-center">
-                      <MapPin className="w-5 h-5 text-warning" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">Report Incident</h3>
-                      <p className="text-xs text-muted-foreground">Help keep others safe</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={handleCancelReport}
-                    className="p-2 rounded-lg hover:bg-secondary transition-colors"
-                  >
-                    <X className="w-5 h-5 text-muted-foreground" />
-                  </button>
-                </div>
-
-                {/* Location Status */}
-                <div className={`mb-4 p-3 rounded-xl flex items-center gap-3 ${
-                  selectedLocation ? 'bg-success/10 border border-success/20' : 'bg-secondary'
-                }`}>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    selectedLocation ? 'bg-success/20' : 'bg-muted'
-                  }`}>
-                    {selectedLocation ? (
-                      <Check className="w-4 h-4 text-success" />
-                    ) : (
-                      <Crosshair className="w-4 h-4 text-muted-foreground animate-pulse" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    {selectedLocation ? (
-                      <>
-                        <p className="text-sm font-medium text-success">Location selected</p>
-                        <p className="text-xs text-muted-foreground">
-                          {selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}
+                <div className="px-6 py-4 border-b border-border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-warning/20 rounded-full flex items-center justify-center">
+                        <AlertTriangle className="w-5 h-5 text-warning" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold">Report Incident</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Location selected on map
                         </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-sm font-medium">Tap on map</p>
-                        <p className="text-xs text-muted-foreground">Select incident location</p>
-                      </>
-                    )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleCancelReport}
+                      className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
 
-                {/* Type Selection */}
-                <p className="text-xs text-muted-foreground mb-2 font-medium">INCIDENT TYPE</p>
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  {(Object.keys(markerTypeConfig) as MarkerType[]).map((type) => {
-                    const config = markerTypeConfig[type];
-                    const Icon = config.icon;
-                    const isSelected = selectedType === type;
-                    return (
-                      <motion.button
-                        key={type}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setSelectedType(type)}
-                        className={`p-3 rounded-xl border-2 transition-all ${
-                          isSelected
-                            ? "border-primary bg-primary/10"
-                            : "border-transparent bg-secondary hover:bg-secondary/80"
-                        }`}
-                      >
-                        <Icon className={`w-5 h-5 mx-auto mb-1.5 ${
-                          isSelected ? "text-primary" : "text-muted-foreground"
-                        }`} />
-                        <span className={`text-xs block ${
-                          isSelected ? "text-primary font-medium" : "text-muted-foreground"
-                        }`}>
-                          {config.label}
-                        </span>
-                      </motion.button>
-                    );
-                  })}
+                {/* Form */}
+                <div className="px-6 py-5 space-y-5">
+                  {/* Location Display */}
+                  <div className="bg-secondary/50 rounded-xl p-4 border border-border">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-success/20 rounded-lg flex items-center justify-center">
+                        <MapPin className="w-4 h-4 text-success" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-success">Location confirmed</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Incident Type */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Incident Type <span className="text-destructive">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(Object.keys(markerTypeConfig) as MarkerType[]).map((type) => {
+                        const config = markerTypeConfig[type];
+                        const Icon = config.icon;
+                        const isSelected = selectedType === type;
+                        return (
+                          <motion.button
+                            key={type}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={() => setSelectedType(type)}
+                            className={`px-4 py-3 rounded-xl border-2 transition-all text-left ${
+                              isSelected
+                                ? "border-primary bg-primary/10"
+                                : "border-border bg-secondary/30 hover:border-muted-foreground/30"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${config.color}`}>
+                                <Icon className="w-4 h-4 text-white" />
+                              </div>
+                              <span className={`text-sm font-medium ${
+                                isSelected ? "text-primary" : "text-foreground"
+                              }`}>
+                                {config.label}
+                              </span>
+                            </div>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Description <span className="text-muted-foreground">(Optional)</span>
+                    </label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Provide additional details about the incident..."
+                      className="w-full px-4 py-3 bg-secondary/50 border border-border rounded-xl text-sm placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none resize-none transition-all"
+                      rows={3}
+                    />
+                  </div>
                 </div>
 
-                {/* Description */}
-                <textarea
-                  placeholder="Add details (optional)..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-3 bg-secondary rounded-xl text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground"
-                  rows={2}
-                />
-
-                {/* Submit Button */}
-                <Button
-                  onClick={handleCreateMarker}
-                  disabled={!selectedLocation}
-                  className="w-full h-12 bg-warning hover:bg-warning/90 text-warning-foreground font-semibold rounded-xl disabled:opacity-40"
-                >
-                  <AlertTriangle className="w-5 h-5 mr-2" />
-                  Report Incident
-                </Button>
-              </div>
+                {/* Actions */}
+                <div className="px-6 py-4 bg-secondary/30 border-t border-border flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelReport}
+                    className="flex-1 h-12 rounded-xl"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleCreateMarker}
+                    className="flex-1 h-12 bg-warning hover:bg-warning/90 text-warning-foreground rounded-xl font-semibold"
+                  >
+                    <Check className="w-5 h-5 mr-2" />
+                    Submit Report
+                  </Button>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
