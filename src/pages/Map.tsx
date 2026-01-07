@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Eye, EyeOff, Plus, X, AlertTriangle, Car, User, Skull, HelpCircle, 
-  MapPin, Navigation, Layers, ChevronDown, Check, Crosshair
+  MapPin, Navigation, Layers, Check, Crosshair, Route
 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import MapboxMap from "@/components/MapboxMap";
@@ -32,6 +32,25 @@ interface Alert {
   status: string;
 }
 
+interface SafetySession {
+  id: string;
+  destination: string;
+  destination_lat: number | null;
+  destination_lng: number | null;
+  status: string;
+  expected_arrival: string;
+}
+
+interface RouteData {
+  id: string;
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+  destinationName?: string;
+  status?: string;
+}
+
 const markerTypeConfig: Record<MarkerType, { label: string; icon: any; color: string }> = {
   robbery: { label: "Robbery", icon: AlertTriangle, color: "bg-destructive" },
   accident: { label: "Accident", icon: Car, color: "bg-warning" },
@@ -50,9 +69,66 @@ const Map = () => {
   const [description, setDescription] = useState("");
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [activeTrip, setActiveTrip] = useState<SafetySession | null>(null);
+  const [routes, setRoutes] = useState<RouteData[]>([]);
   
   const { latitude, longitude } = useGeolocation(!ghostMode);
   const { user } = useAuth();
+
+  // Fetch active safety session for route display
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchActiveTrip = async () => {
+      const { data } = await supabase
+        .from("safety_sessions")
+        .select("*")
+        .eq("user_id", user.id)
+        .in("status", ["active", "late"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data) {
+        setActiveTrip(data);
+      } else {
+        setActiveTrip(null);
+        setRoutes([]);
+      }
+    };
+
+    fetchActiveTrip();
+
+    const channel = supabase
+      .channel("safety-session-map")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "safety_sessions", filter: `user_id=eq.${user.id}` },
+        () => fetchActiveTrip()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Update routes when activeTrip or user location changes
+  useEffect(() => {
+    if (activeTrip && latitude && longitude && activeTrip.destination_lat && activeTrip.destination_lng) {
+      setRoutes([{
+        id: activeTrip.id,
+        startLat: latitude,
+        startLng: longitude,
+        endLat: activeTrip.destination_lat,
+        endLng: activeTrip.destination_lng,
+        destinationName: activeTrip.destination,
+        status: activeTrip.status,
+      }]);
+    } else {
+      setRoutes([]);
+    }
+  }, [activeTrip, latitude, longitude]);
 
   // Fetch markers and alerts
   useEffect(() => {
@@ -155,6 +231,7 @@ const Map = () => {
           showUserLocation={!ghostMode}
           markers={markers}
           alerts={alerts}
+          routes={routes}
           onMapClick={handleMapClick}
         />
 
@@ -196,9 +273,45 @@ const Map = () => {
           </div>
         </div>
 
+        {/* Active Trip Banner */}
+        <AnimatePresence>
+          {activeTrip && !showAddPin && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-20 left-4 right-4 z-10"
+            >
+              <div className={`backdrop-blur-sm px-4 py-3 rounded-xl flex items-center gap-3 shadow-lg ${
+                activeTrip.status === 'late' 
+                  ? 'bg-warning/95 text-warning-foreground' 
+                  : 'bg-success/95 text-success-foreground'
+              }`}>
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <Route className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">
+                    Look After Me Active
+                  </p>
+                  <p className="text-xs opacity-80 truncate">
+                    To: {activeTrip.destination}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs opacity-70">ETA</p>
+                  <p className="text-sm font-bold">
+                    {new Date(activeTrip.expected_arrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Alert Banner */}
         <AnimatePresence>
-          {alerts.length > 0 && !showAddPin && (
+          {alerts.length > 0 && !showAddPin && !activeTrip && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
