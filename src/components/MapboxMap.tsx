@@ -13,6 +13,15 @@ interface RouteData {
   status?: string;
 }
 
+interface WatcherData {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  latitude: number;
+  longitude: number;
+  updatedAt: string;
+}
+
 interface MapboxMapProps {
   onMapLoad?: (map: mapboxgl.Map) => void;
   onLocationUpdate?: (lat: number, lng: number) => void;
@@ -32,6 +41,7 @@ interface MapboxMapProps {
     status: string;
   }>;
   routes?: RouteData[];
+  watchers?: WatcherData[];
   onMapClick?: (lat: number, lng: number) => void;
   className?: string;
 }
@@ -55,6 +65,7 @@ export const MapboxMap = ({
   markers = [],
   alerts = [],
   routes = [],
+  watchers = [],
   onMapClick,
   className = "",
 }: MapboxMapProps) => {
@@ -62,6 +73,7 @@ export const MapboxMap = ({
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const destinationMarkerRefs = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const watcherMarkerRefs = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const markerRefs = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
@@ -237,6 +249,78 @@ export const MapboxMap = ({
       markerRefs.current.set(item.id, marker);
     });
   }, [markers, alerts, mapLoaded]);
+
+  // Update watcher markers
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    // Get current watcher IDs
+    const currentWatcherIds = new Set(watchers.map(w => w.id));
+
+    // Remove old watcher markers
+    watcherMarkerRefs.current.forEach((marker, id) => {
+      if (!currentWatcherIds.has(id)) {
+        marker.remove();
+        watcherMarkerRefs.current.delete(id);
+      }
+    });
+
+    // Add/update watcher markers
+    watchers.forEach((watcher) => {
+      const existingMarker = watcherMarkerRefs.current.get(watcher.id);
+      
+      if (existingMarker) {
+        // Update position of existing marker
+        existingMarker.setLngLat([watcher.longitude, watcher.latitude]);
+      } else {
+        // Create new watcher marker
+        const el = document.createElement("div");
+        el.className = "watcher-marker";
+        
+        // Get initials from name
+        const initials = watcher.name
+          .split(" ")
+          .map(n => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2);
+
+        el.innerHTML = `
+          <div class="relative cursor-pointer transform hover:scale-110 transition-transform">
+            <div class="absolute -inset-1.5 bg-cyan-400/30 rounded-full animate-pulse"></div>
+            <div class="w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 border-white overflow-hidden" style="background: linear-gradient(135deg, #06B6D4, #0891B2)">
+              ${watcher.avatarUrl 
+                ? `<img src="${watcher.avatarUrl}" alt="${watcher.name}" class="w-full h-full object-cover" />`
+                : `<span class="text-white text-sm font-bold">${initials}</span>`
+              }
+            </div>
+          </div>
+        `;
+
+        const lastUpdate = new Date(watcher.updatedAt);
+        const minutesAgo = Math.floor((Date.now() - lastUpdate.getTime()) / 60000);
+        const timeAgo = minutesAgo < 1 ? "Just now" : minutesAgo < 60 ? `${minutesAgo}m ago` : `${Math.floor(minutesAgo / 60)}h ago`;
+
+        const popup = new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(`
+          <div class="p-3 text-sm">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="w-2 h-2 rounded-full bg-cyan-500"></div>
+              <strong class="text-cyan-600">${watcher.name}</strong>
+            </div>
+            <p class="text-gray-500 text-xs">Last updated: ${timeAgo}</p>
+            <p class="text-xs text-gray-400 mt-1">Trusted Contact</p>
+          </div>
+        `);
+
+        const marker = new mapboxgl.Marker({ element: el })
+          .setLngLat([watcher.longitude, watcher.latitude])
+          .setPopup(popup)
+          .addTo(map.current!);
+
+        watcherMarkerRefs.current.set(watcher.id, marker);
+      }
+    });
+  }, [watchers, mapLoaded]);
 
   // Draw routes for Look After Me trips
   useEffect(() => {

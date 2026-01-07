@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Eye, EyeOff, Plus, X, AlertTriangle, Car, User, Skull, HelpCircle, 
-  MapPin, Navigation, Layers, Check, Crosshair, Route
+  MapPin, Navigation, Layers, Check, Crosshair, Route, Users
 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import MapboxMap from "@/components/MapboxMap";
@@ -51,6 +51,15 @@ interface RouteData {
   status?: string;
 }
 
+interface WatcherLocation {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  latitude: number;
+  longitude: number;
+  updatedAt: string;
+}
+
 const markerTypeConfig: Record<MarkerType, { label: string; icon: any; color: string }> = {
   robbery: { label: "Robbery", icon: AlertTriangle, color: "bg-destructive" },
   accident: { label: "Accident", icon: Car, color: "bg-warning" },
@@ -71,6 +80,7 @@ const Map = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [activeTrip, setActiveTrip] = useState<SafetySession | null>(null);
   const [routes, setRoutes] = useState<RouteData[]>([]);
+  const [watcherLocations, setWatcherLocations] = useState<WatcherLocation[]>([]);
   
   const { latitude, longitude } = useGeolocation(!ghostMode);
   const { user } = useAuth();
@@ -174,6 +184,79 @@ const Map = () => {
     };
   }, []);
 
+  // Fetch watchers' locations
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchWatcherLocations = async () => {
+      // Get accepted watchers (people watching me + people I watch)
+      const { data: watcherRelations } = await supabase
+        .from("watchers")
+        .select("user_id, watcher_id")
+        .eq("status", "accepted")
+        .or(`user_id.eq.${user.id},watcher_id.eq.${user.id}`);
+
+      if (!watcherRelations || watcherRelations.length === 0) {
+        setWatcherLocations([]);
+        return;
+      }
+
+      // Get unique watcher IDs (excluding current user)
+      const watcherIds = [...new Set(
+        watcherRelations.flatMap(r => [r.user_id, r.watcher_id])
+          .filter(id => id !== user.id)
+      )];
+
+      if (watcherIds.length === 0) {
+        setWatcherLocations([]);
+        return;
+      }
+
+      // Fetch their locations and profiles
+      const { data: locations } = await supabase
+        .from("user_locations")
+        .select("user_id, latitude, longitude, updated_at")
+        .in("user_id", watcherIds);
+
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", watcherIds);
+
+      if (locations && profiles) {
+        const watcherLocs: WatcherLocation[] = locations
+          .map(loc => {
+            const profile = profiles.find(p => p.id === loc.user_id);
+            return {
+              id: loc.user_id,
+              name: profile?.full_name || "Watcher",
+              avatarUrl: profile?.avatar_url || undefined,
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              updatedAt: loc.updated_at || new Date().toISOString(),
+            };
+          });
+        setWatcherLocations(watcherLocs);
+      }
+    };
+
+    fetchWatcherLocations();
+
+    // Real-time subscription for location updates
+    const locationsChannel = supabase
+      .channel("watcher-locations-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_locations" },
+        () => fetchWatcherLocations()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(locationsChannel);
+    };
+  }, [user]);
+
   const handleGhostToggle = async () => {
     if (!user) return;
     
@@ -232,6 +315,7 @@ const Map = () => {
           markers={markers}
           alerts={alerts}
           routes={routes}
+          watchers={watcherLocations}
           onMapClick={handleMapClick}
         />
 
@@ -392,13 +476,32 @@ const Map = () => {
                     </div>
                   );
                 })}
-                <div className="border-t border-border pt-2 mt-2">
+                <div className="border-t border-border pt-2 mt-2 space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
                       <Navigation className="w-3 h-3 text-white" />
                     </div>
                     <span className="text-muted-foreground">Your location</span>
                   </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center">
+                      <Users className="w-3 h-3 text-white" />
+                    </div>
+                    <span className="text-muted-foreground">Trusted contacts</span>
+                    {watcherLocations.length > 0 && (
+                      <span className="text-xs bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">
+                        {watcherLocations.length}
+                      </span>
+                    )}
+                  </div>
+                  {routes.length > 0 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-6 h-6 rounded-full bg-success flex items-center justify-center">
+                        <Route className="w-3 h-3 text-white" />
+                      </div>
+                      <span className="text-muted-foreground">Active trip route</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
