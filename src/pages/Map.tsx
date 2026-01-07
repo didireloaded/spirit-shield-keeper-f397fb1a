@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import MapboxMap from "@/components/MapboxMap";
+import IncidentDetailsModal from "@/components/IncidentDetailsModal";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +23,9 @@ interface Marker {
   description: string | null;
   user_id: string;
   created_at: string;
+  status?: string;
+  verified_count?: number;
+  comment_count?: number;
 }
 
 interface Alert {
@@ -81,6 +85,7 @@ const Map = () => {
   const [activeTrip, setActiveTrip] = useState<SafetySession | null>(null);
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [watcherLocations, setWatcherLocations] = useState<WatcherLocation[]>([]);
+  const [selectedMarker, setSelectedMarker] = useState<Marker | null>(null);
   
   const { latitude, longitude } = useGeolocation(!ghostMode);
   const { user } = useAuth();
@@ -280,13 +285,13 @@ const Map = () => {
   const handleCreateMarker = async () => {
     if (!user || !selectedLocation) return;
 
-    const { error } = await supabase.from("markers").insert({
+    const { data, error } = await supabase.from("markers").insert({
       user_id: user.id,
       latitude: selectedLocation.lat,
       longitude: selectedLocation.lng,
       type: selectedType,
       description: description || null,
-    });
+    }).select().single();
 
     if (error) {
       toast.error("Failed to report incident");
@@ -296,6 +301,13 @@ const Map = () => {
       setShowAddPin(false);
       setSelectedLocation(null);
       setDescription("");
+
+      // Trigger push notifications to nearby users
+      if (data) {
+        supabase.functions.invoke("send-incident-notification", {
+          body: { marker: data },
+        }).catch(err => console.error("Notification error:", err));
+      }
     }
   };
 
@@ -657,6 +669,13 @@ const Map = () => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Incident Details Modal */}
+      <IncidentDetailsModal
+        marker={selectedMarker}
+        onClose={() => setSelectedMarker(null)}
+        userLocation={latitude && longitude ? { lat: latitude, lng: longitude } : null}
+      />
 
       <BottomNav />
     </div>

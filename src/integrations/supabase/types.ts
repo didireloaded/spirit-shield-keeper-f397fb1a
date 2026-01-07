@@ -177,36 +177,150 @@ export type Database = {
         }
         Relationships: []
       }
+      marker_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          marker_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          marker_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          marker_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marker_comments_marker_id_fkey"
+            columns: ["marker_id"]
+            isOneToOne: false
+            referencedRelation: "markers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marker_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          marker_id: string
+          reaction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          marker_id: string
+          reaction_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marker_id?: string
+          reaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marker_reactions_marker_id_fkey"
+            columns: ["marker_id"]
+            isOneToOne: false
+            referencedRelation: "markers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marker_status_history: {
+        Row: {
+          created_at: string
+          id: string
+          marker_id: string
+          new_status: string
+          note: string | null
+          old_status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          marker_id: string
+          new_status: string
+          note?: string | null
+          old_status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marker_id?: string
+          new_status?: string
+          note?: string | null
+          old_status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marker_status_history_marker_id_fkey"
+            columns: ["marker_id"]
+            isOneToOne: false
+            referencedRelation: "markers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       markers: {
         Row: {
+          comment_count: number | null
           created_at: string | null
           description: string | null
           expires_at: string | null
           id: string
           latitude: number
           longitude: number
+          status: string | null
           type: Database["public"]["Enums"]["marker_type"]
           user_id: string
+          verified_count: number | null
         }
         Insert: {
+          comment_count?: number | null
           created_at?: string | null
           description?: string | null
           expires_at?: string | null
           id?: string
           latitude: number
           longitude: number
+          status?: string | null
           type: Database["public"]["Enums"]["marker_type"]
           user_id: string
+          verified_count?: number | null
         }
         Update: {
+          comment_count?: number | null
           created_at?: string | null
           description?: string | null
           expires_at?: string | null
           id?: string
           latitude?: number
           longitude?: number
+          status?: string | null
           type?: Database["public"]["Enums"]["marker_type"]
           user_id?: string
+          verified_count?: number | null
         }
         Relationships: []
       }
@@ -244,6 +358,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          data: Json | null
+          id: string
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          data?: Json | null
+          id?: string
+          read?: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          data?: Json | null
+          id?: string
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       post_likes: {
         Row: {
@@ -349,6 +496,36 @@ export type Database = {
           region?: string | null
           updated_at?: string | null
           username?: string | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
