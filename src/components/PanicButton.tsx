@@ -1,10 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, Shield, X, Mic, MicOff, MapPin } from "lucide-react";
-import { useAudioRecording } from "@/hooks/useAudioRecording";
-import { useGeolocation } from "@/hooks/useGeolocation";
-import { useAlerts } from "@/hooks/useAlerts";
-import { toast } from "sonner";
+import { AlertTriangle, Shield, X, Mic, MapPin, Upload, Radio } from "lucide-react";
+import { usePanicSession } from "@/hooks/usePanicSession";
 
 interface PanicButtonProps {
   variant?: "panic" | "amber";
@@ -13,81 +10,38 @@ interface PanicButtonProps {
 export const PanicButton = ({ variant = "panic" }: PanicButtonProps) => {
   const [isPressed, setIsPressed] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
-  const [isActivated, setIsActivated] = useState(false);
-  const [alertId, setAlertId] = useState<string | null>(null);
 
-  const { isRecording, startRecording, stopRecording, error: audioError } = useAudioRecording();
-  const { latitude, longitude, error: geoError } = useGeolocation();
-  const { createAlert, cancelAlert } = useAlerts();
+  const { 
+    session, 
+    isActive, 
+    isRecording, 
+    chunkCount, 
+    error, 
+    startPanic, 
+    endPanic, 
+    cancelPanic 
+  } = usePanicSession();
 
   const isPanic = variant === "panic";
   const buttonLabel = isPanic ? "Panic" : "Amber";
-  const alertType = isPanic ? "panic" : "amber";
 
   const handleActivate = useCallback(async () => {
-    console.log(`[${buttonLabel}] Activating alert...`);
-
-    // Start audio recording
-    await startRecording();
-
-    // Get current location
-    if (!latitude || !longitude) {
-      toast.error("Unable to get your location. Please enable GPS.");
-      return;
-    }
-
-    // Create alert in database (without audio URL for now)
-    const { data, error } = await createAlert(
-      alertType,
-      latitude,
-      longitude,
-      `${buttonLabel} alert triggered`
-    );
-
-    if (error) {
-      console.error(`[${buttonLabel}] Failed to create alert:`, error);
-      toast.error("Failed to create alert. Please try again.");
-      return;
-    }
-
-    if (data) {
-      setAlertId(data.id);
-      setIsActivated(true);
-      toast.success(`${buttonLabel} alert activated! Recording audio...`);
-    }
-  }, [startRecording, latitude, longitude, createAlert, alertType, buttonLabel]);
+    console.log(`[${buttonLabel}] Activating panic session...`);
+    await startPanic();
+  }, [startPanic, buttonLabel]);
 
   const handleDeactivate = useCallback(async () => {
-    console.log(`[${buttonLabel}] Deactivating alert...`);
-
-    // Stop recording and upload audio
-    const audioUrl = await stopRecording();
-
-    if (audioUrl && alertId) {
-      // Update alert with audio URL would go here
-      console.log(`[${buttonLabel}] Audio uploaded:`, audioUrl);
-    }
-
-    toast.info("Alert finalized. Evidence saved.");
-    setIsActivated(false);
-    setAlertId(null);
-  }, [stopRecording, alertId, buttonLabel]);
+    console.log(`[${buttonLabel}] Deactivating panic session...`);
+    await endPanic("ended");
+  }, [endPanic, buttonLabel]);
 
   const handleCancel = useCallback(async () => {
-    if (alertId) {
-      await cancelAlert(alertId);
-    }
-    if (isRecording) {
-      await stopRecording();
-    }
-    setIsActivated(false);
-    setAlertId(null);
+    await cancelPanic();
     setHoldProgress(0);
-    toast.info("Alert cancelled.");
-  }, [alertId, isRecording, cancelAlert, stopRecording]);
+  }, [cancelPanic]);
 
   const handleMouseDown = () => {
-    if (isActivated) {
+    if (isActive) {
       // Second press - stop recording
       handleDeactivate();
       return;
@@ -124,7 +78,7 @@ export const PanicButton = ({ variant = "panic" }: PanicButtonProps) => {
   return (
     <div className="relative flex flex-col items-center">
       <AnimatePresence mode="wait">
-        {isActivated ? (
+        {isActive ? (
           <motion.div
             key="activated"
             initial={{ scale: 0.8, opacity: 0 }}
@@ -132,29 +86,55 @@ export const PanicButton = ({ variant = "panic" }: PanicButtonProps) => {
             exit={{ scale: 0.8, opacity: 0 }}
             className="flex flex-col items-center gap-4"
           >
+            {/* Active state - main circle */}
             <div className="relative">
               <div className={`absolute inset-0 rounded-full ${isPanic ? "bg-panic" : "bg-warning"} animate-ping opacity-30`} />
-              <div className={`w-28 h-28 rounded-full ${gradientClass} flex flex-col items-center justify-center ${shadowClass}`}>
+              <div className={`w-32 h-32 rounded-full ${gradientClass} flex flex-col items-center justify-center ${shadowClass}`}>
                 {isRecording ? (
-                  <Mic className="w-10 h-10 text-white animate-pulse" />
+                  <Mic className="w-12 h-12 text-white animate-pulse" />
                 ) : (
-                  <AlertTriangle className="w-10 h-10 text-white" />
+                  <AlertTriangle className="w-12 h-12 text-white" />
                 )}
-                <span className="text-[10px] font-bold text-white uppercase mt-1">
+                <span className="text-xs font-bold text-white uppercase mt-1">
                   {isRecording ? "Recording" : "Active"}
                 </span>
               </div>
             </div>
 
-            <div className="text-center">
+            {/* Status indicators */}
+            <div className="flex flex-col items-center gap-2 text-center">
               <p className={`text-sm font-bold ${isPanic ? "text-destructive" : "text-warning"}`}>
-                {buttonLabel.toUpperCase()} ALERT ACTIVE
+                🚨 {buttonLabel.toUpperCase()} ALERT ACTIVE
               </p>
+              
+              {/* Real-time stats */}
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                {isRecording && (
+                  <div className="flex items-center gap-1">
+                    <Radio className="w-3 h-3 text-destructive animate-pulse" />
+                    <span>Live</span>
+                  </div>
+                )}
+                {chunkCount > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Upload className="w-3 h-3 text-green-500" />
+                    <span>{chunkCount} chunks uploaded</span>
+                  </div>
+                )}
+                {session && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    <span>GPS tracking</span>
+                  </div>
+                )}
+              </div>
+
               <p className="text-xs text-muted-foreground">
-                {isRecording ? "Tap again to stop recording" : "Evidence saved"}
+                Tap button again to end | Evidence uploading continuously
               </p>
             </div>
 
+            {/* Cancel button */}
             <button
               onClick={handleCancel}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors text-sm"
@@ -210,7 +190,7 @@ export const PanicButton = ({ variant = "panic" }: PanicButtonProps) => {
                   flex flex-col items-center justify-center gap-1
                   cursor-pointer select-none
                   transition-all duration-200
-                  ${!isPressed && !isActivated ? pulseClass : ""}
+                  ${!isPressed && !isActive ? pulseClass : ""}
                 `}
               >
                 <Shield className="w-8 h-8 text-white" />
@@ -219,13 +199,17 @@ export const PanicButton = ({ variant = "panic" }: PanicButtonProps) => {
                 </span>
               </motion.button>
             </div>
+
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Hold to activate
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {(audioError || geoError) && (
+      {error && (
         <p className="text-xs text-destructive mt-2 text-center max-w-[200px]">
-          {audioError || geoError}
+          {error}
         </p>
       )}
     </div>
