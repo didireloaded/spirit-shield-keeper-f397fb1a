@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.send-incident-notification]
 verify_jwt = false
+
+[functions.panic-session]
+verify_jwt = false

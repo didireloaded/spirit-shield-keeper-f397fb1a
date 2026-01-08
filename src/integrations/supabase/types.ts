@@ -392,6 +392,189 @@ export type Database = {
         }
         Relationships: []
       }
+      panic_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          delivery_status: string
+          error_message: string | null
+          id: string
+          panic_session_id: string
+          recipient_id: string | null
+          recipient_info: string | null
+          sent_at: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          delivery_status?: string
+          error_message?: string | null
+          id?: string
+          panic_session_id: string
+          recipient_id?: string | null
+          recipient_info?: string | null
+          sent_at?: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          delivery_status?: string
+          error_message?: string | null
+          id?: string
+          panic_session_id?: string
+          recipient_id?: string | null
+          recipient_info?: string | null
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panic_alerts_panic_session_id_fkey"
+            columns: ["panic_session_id"]
+            isOneToOne: false
+            referencedRelation: "panic_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      panic_audio_chunks: {
+        Row: {
+          chunk_end_time: string
+          chunk_index: number
+          chunk_start_time: string
+          created_at: string
+          duration_seconds: number
+          file_size_bytes: number | null
+          file_url: string
+          id: string
+          panic_session_id: string
+        }
+        Insert: {
+          chunk_end_time: string
+          chunk_index: number
+          chunk_start_time: string
+          created_at?: string
+          duration_seconds: number
+          file_size_bytes?: number | null
+          file_url: string
+          id?: string
+          panic_session_id: string
+        }
+        Update: {
+          chunk_end_time?: string
+          chunk_index?: number
+          chunk_start_time?: string
+          created_at?: string
+          duration_seconds?: number
+          file_size_bytes?: number | null
+          file_url?: string
+          id?: string
+          panic_session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panic_audio_chunks_panic_session_id_fkey"
+            columns: ["panic_session_id"]
+            isOneToOne: false
+            referencedRelation: "panic_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      panic_location_logs: {
+        Row: {
+          accuracy: number | null
+          created_at: string
+          heading: number | null
+          id: string
+          lat: number
+          lng: number
+          panic_session_id: string
+          recorded_at: string
+          speed: number | null
+        }
+        Insert: {
+          accuracy?: number | null
+          created_at?: string
+          heading?: number | null
+          id?: string
+          lat: number
+          lng: number
+          panic_session_id: string
+          recorded_at?: string
+          speed?: number | null
+        }
+        Update: {
+          accuracy?: number | null
+          created_at?: string
+          heading?: number | null
+          id?: string
+          lat?: number
+          lng?: number
+          panic_session_id?: string
+          recorded_at?: string
+          speed?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panic_location_logs_panic_session_id_fkey"
+            columns: ["panic_session_id"]
+            isOneToOne: false
+            referencedRelation: "panic_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      panic_sessions: {
+        Row: {
+          consent_given: boolean
+          created_at: string
+          device_info: Json | null
+          ended_at: string | null
+          id: string
+          initial_lat: number
+          initial_lng: number
+          last_known_lat: number
+          last_known_lng: number
+          last_location_at: string
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          consent_given?: boolean
+          created_at?: string
+          device_info?: Json | null
+          ended_at?: string | null
+          id?: string
+          initial_lat: number
+          initial_lng: number
+          last_known_lat: number
+          last_known_lng: number
+          last_location_at?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          consent_given?: boolean
+          created_at?: string
+          device_info?: Json | null
+          ended_at?: string | null
+          id?: string
+          initial_lat?: number
+          initial_lng?: number
+          last_known_lat?: number
+          last_known_lng?: number
+          last_location_at?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       post_likes: {
         Row: {
           created_at: string | null
