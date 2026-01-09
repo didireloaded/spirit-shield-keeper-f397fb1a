@@ -14,8 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_events: {
+        Row: {
+          alert_id: string
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          alert_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          alert_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_events_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alerts: {
         Row: {
+          audio_duration_seconds: number | null
+          audio_started_at: string | null
           audio_url: string | null
           created_at: string | null
           description: string | null
@@ -29,6 +63,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          audio_duration_seconds?: number | null
+          audio_started_at?: string | null
           audio_url?: string | null
           created_at?: string | null
           description?: string | null
@@ -42,6 +78,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          audio_duration_seconds?: number | null
+          audio_started_at?: string | null
           audio_url?: string | null
           created_at?: string | null
           description?: string | null
