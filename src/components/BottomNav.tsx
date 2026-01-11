@@ -1,11 +1,11 @@
-import { MapPin, Users, Shield, Home, Phone } from "lucide-react";
+import { MapPin, AlertCircle, Shield, Home, Phone } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
 const navItems = [
-  { icon: Home, label: "Home", path: "/" },
   { icon: MapPin, label: "Map", path: "/map" },
-  { icon: Users, label: "Community", path: "/community" },
+  { icon: AlertCircle, label: "Alerts", path: "/alerts" },
   { icon: Shield, label: "Look After", path: "/look-after-me" },
+  { icon: Home, label: "Home", path: "/" },
   { icon: Phone, label: "Authorities", path: "/authorities" },
 ];
 

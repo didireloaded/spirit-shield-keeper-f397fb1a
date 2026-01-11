@@ -7,7 +7,6 @@ import {
 import { BottomNav } from "@/components/BottomNav";
 import MapboxMap from "@/components/MapboxMap";
 import IncidentDetailsModal from "@/components/IncidentDetailsModal";
-import { AlertDetailsModal } from "@/components/AlertDetailsModal";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,10 +34,6 @@ interface Alert {
   longitude: number;
   type: string;
   status: string;
-  description?: string | null;
-  audio_url?: string | null;
-  created_at?: string | null;
-  user_id?: string;
 }
 
 interface SafetySession {
@@ -91,7 +86,6 @@ const Map = () => {
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [watcherLocations, setWatcherLocations] = useState<WatcherLocation[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<Marker | null>(null);
-  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   
   const { latitude, longitude } = useGeolocation(!ghostMode);
   const { user } = useAuth();
@@ -335,8 +329,6 @@ const Map = () => {
           routes={routes}
           watchers={watcherLocations}
           onMapClick={handleMapClick}
-          onAlertClick={(alert) => setSelectedAlert(alert)}
-          onMarkerClick={(marker) => setSelectedMarker(marker as Marker)}
         />
 
         {/* Top Bar */}
@@ -684,27 +676,6 @@ const Map = () => {
         onClose={() => setSelectedMarker(null)}
         userLocation={latitude && longitude ? { lat: latitude, lng: longitude } : null}
       />
-
-      {/* Alert Details Modal */}
-      <AnimatePresence>
-        {selectedAlert && (
-          <AlertDetailsModal
-            alert={{
-              id: selectedAlert.id,
-              type: selectedAlert.type,
-              latitude: selectedAlert.latitude,
-              longitude: selectedAlert.longitude,
-              description: selectedAlert.description ?? null,
-              audio_url: selectedAlert.audio_url ?? null,
-              created_at: selectedAlert.created_at ?? null,
-              status: selectedAlert.status,
-              user_id: selectedAlert.user_id || "",
-            }}
-            onClose={() => setSelectedAlert(null)}
-            userLocation={latitude && longitude ? { latitude, longitude } : null}
-          />
-        )}
-      </AnimatePresence>
 
       <BottomNav />
     </div>

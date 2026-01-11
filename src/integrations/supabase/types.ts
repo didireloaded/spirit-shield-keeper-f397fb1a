@@ -14,42 +14,8 @@ export type Database = {
   }
   public: {
     Tables: {
-      alert_events: {
-        Row: {
-          alert_id: string
-          created_at: string
-          event_type: string
-          id: string
-          metadata: Json | null
-        }
-        Insert: {
-          alert_id: string
-          created_at?: string
-          event_type: string
-          id?: string
-          metadata?: Json | null
-        }
-        Update: {
-          alert_id?: string
-          created_at?: string
-          event_type?: string
-          id?: string
-          metadata?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "alert_events_alert_id_fkey"
-            columns: ["alert_id"]
-            isOneToOne: false
-            referencedRelation: "alerts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       alerts: {
         Row: {
-          audio_duration_seconds: number | null
-          audio_started_at: string | null
           audio_url: string | null
           created_at: string | null
           description: string | null
@@ -63,8 +29,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          audio_duration_seconds?: number | null
-          audio_started_at?: string | null
           audio_url?: string | null
           created_at?: string | null
           description?: string | null
@@ -78,8 +42,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          audio_duration_seconds?: number | null
-          audio_started_at?: string | null
           audio_url?: string | null
           created_at?: string | null
           description?: string | null
@@ -167,145 +129,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      community_comments: {
-        Row: {
-          content: string
-          created_at: string
-          deleted_at: string | null
-          id: string
-          post_id: string
-          user_id: string
-        }
-        Insert: {
-          content: string
-          created_at?: string
-          deleted_at?: string | null
-          id?: string
-          post_id: string
-          user_id: string
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          deleted_at?: string | null
-          id?: string
-          post_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "community_comments_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "community_posts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      community_posts: {
-        Row: {
-          comments_count: number
-          content: string
-          created_at: string
-          deleted_at: string | null
-          id: string
-          image_url: string | null
-          is_verified: boolean
-          likes_count: number
-          location_label: string | null
-          updated_at: string
-          user_id: string
-          visibility: string
-        }
-        Insert: {
-          comments_count?: number
-          content: string
-          created_at?: string
-          deleted_at?: string | null
-          id?: string
-          image_url?: string | null
-          is_verified?: boolean
-          likes_count?: number
-          location_label?: string | null
-          updated_at?: string
-          user_id: string
-          visibility?: string
-        }
-        Update: {
-          comments_count?: number
-          content?: string
-          created_at?: string
-          deleted_at?: string | null
-          id?: string
-          image_url?: string | null
-          is_verified?: boolean
-          likes_count?: number
-          location_label?: string | null
-          updated_at?: string
-          user_id?: string
-          visibility?: string
-        }
-        Relationships: []
-      }
-      community_reactions: {
-        Row: {
-          created_at: string
-          id: string
-          post_id: string
-          reaction_type: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          post_id: string
-          reaction_type: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          post_id?: string
-          reaction_type?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "community_reactions_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "community_posts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      community_reports: {
-        Row: {
-          created_at: string
-          id: string
-          reason: string
-          target_id: string
-          target_type: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          reason: string
-          target_id: string
-          target_type: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          reason?: string
-          target_id?: string
-          target_type?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       conversation_participants: {
         Row: {

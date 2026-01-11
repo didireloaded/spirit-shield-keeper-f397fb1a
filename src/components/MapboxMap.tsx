@@ -22,18 +22,6 @@ interface WatcherData {
   updatedAt: string;
 }
 
-interface AlertData {
-  id: string;
-  latitude: number;
-  longitude: number;
-  type: string;
-  status: string;
-  description?: string | null;
-  audio_url?: string | null;
-  created_at?: string | null;
-  user_id?: string;
-}
-
 interface MapboxMapProps {
   onMapLoad?: (map: mapboxgl.Map) => void;
   onLocationUpdate?: (lat: number, lng: number) => void;
@@ -45,12 +33,16 @@ interface MapboxMapProps {
     type: string;
     description?: string;
   }>;
-  alerts?: AlertData[];
+  alerts?: Array<{
+    id: string;
+    latitude: number;
+    longitude: number;
+    type: string;
+    status: string;
+  }>;
   routes?: RouteData[];
   watchers?: WatcherData[];
   onMapClick?: (lat: number, lng: number) => void;
-  onAlertClick?: (alert: AlertData) => void;
-  onMarkerClick?: (marker: { id: string; latitude: number; longitude: number; type: string; description?: string }) => void;
   className?: string;
 }
 
@@ -75,8 +67,6 @@ export const MapboxMap = ({
   routes = [],
   watchers = [],
   onMapClick,
-  onAlertClick,
-  onMarkerClick,
   className = "",
 }: MapboxMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -230,14 +220,12 @@ export const MapboxMap = ({
 
       const color = markerColors[item.type] || markerColors.other;
       const isAlert = "status" in item;
-      const alertItem = isAlert ? item as AlertData : null;
 
       const el = document.createElement("div");
       el.className = "incident-marker";
       el.innerHTML = `
         <div class="relative cursor-pointer transform hover:scale-110 transition-transform">
-          ${isAlert ? '<div class="absolute -inset-3 rounded-full animate-ping" style="background-color: ' + color + '40"></div>' : ""}
-          ${isAlert ? '<div class="absolute -inset-4 rounded-full opacity-20" style="background-color: ' + color + '"></div>' : ""}
+          ${isAlert ? '<div class="absolute -inset-2 rounded-full animate-ping" style="background-color: ' + color + '40"></div>' : ""}
           <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg" style="background-color: ${color}">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -246,23 +234,21 @@ export const MapboxMap = ({
         </div>
       `;
 
-      // Add click handler
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (isAlert && onAlertClick && alertItem) {
-          onAlertClick(alertItem);
-        } else if (!isAlert && onMarkerClick) {
-          onMarkerClick(item as { id: string; latitude: number; longitude: number; type: string; description?: string });
-        }
-      });
+      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(`
+        <div class="p-2 text-sm">
+          <strong class="capitalize">${item.type}</strong>
+          ${"description" in item && item.description ? `<p class="text-gray-600 mt-1">${item.description}</p>` : ""}
+        </div>
+      `);
 
       const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([item.longitude, item.latitude])
+        .setPopup(popup)
         .addTo(map.current!);
 
       markerRefs.current.set(item.id, marker);
     });
-  }, [markers, alerts, mapLoaded, onAlertClick, onMarkerClick]);
+  }, [markers, alerts, mapLoaded]);
 
   // Update watcher markers
   useEffect(() => {

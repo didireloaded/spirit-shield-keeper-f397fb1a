@@ -8,7 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Map from "./pages/Map";
-import Community from "./pages/Community";
+import Alerts from "./pages/Alerts";
 import LookAfterMe from "./pages/LookAfterMe";
 import Authorities from "./pages/Authorities";
 import Chat from "./pages/Chat";
@@ -31,7 +31,7 @@ const App = () => (
               path="/"
               element={
                 <ProtectedRoute>
-                  <Index />
+                  <Alerts />
                 </ProtectedRoute>
               }
             />
@@ -44,10 +44,10 @@ const App = () => (
               }
             />
             <Route
-              path="/community"
+              path="/alerts"
               element={
                 <ProtectedRoute>
-                  <Community />
+                  <Alerts />
                 </ProtectedRoute>
               }
             />
