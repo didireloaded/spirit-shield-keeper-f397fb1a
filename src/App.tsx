@@ -12,6 +12,7 @@ import Alerts from "./pages/Alerts";
 import LookAfterMe from "./pages/LookAfterMe";
 import Authorities from "./pages/Authorities";
 import Chat from "./pages/Chat";
+import Community from "./pages/Community";
 import Profile from "./pages/Profile";
 import Watchers from "./pages/Watchers";
 import NotFound from "./pages/NotFound";
@@ -88,6 +89,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Watchers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/community"
+              element={
+                <ProtectedRoute>
+                  <Community />
                 </ProtectedRoute>
               }
             />
