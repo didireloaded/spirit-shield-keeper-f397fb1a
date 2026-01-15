@@ -536,6 +536,48 @@ export type Database = {
           },
         ]
       }
+      notification_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          panic_override: boolean | null
+          push_enabled: boolean | null
+          quiet_hours_enabled: boolean | null
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          sound_enabled: boolean | null
+          updated_at: string | null
+          user_id: string
+          vibration_enabled: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          panic_override?: boolean | null
+          push_enabled?: boolean | null
+          quiet_hours_enabled?: boolean | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          sound_enabled?: boolean | null
+          updated_at?: string | null
+          user_id: string
+          vibration_enabled?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          panic_override?: boolean | null
+          push_enabled?: boolean | null
+          quiet_hours_enabled?: boolean | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          sound_enabled?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+          vibration_enabled?: boolean | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           actor_id: string | null
@@ -545,6 +587,7 @@ export type Database = {
           entity_id: string | null
           entity_type: string | null
           id: string
+          priority: string | null
           read: boolean | null
           title: string
           type: string
@@ -558,6 +601,7 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string | null
           id?: string
+          priority?: string | null
           read?: boolean | null
           title: string
           type: string
@@ -571,6 +615,7 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string | null
           id?: string
+          priority?: string | null
           read?: boolean | null
           title?: string
           type?: string
@@ -988,6 +1033,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_rate_limits: {
+        Row: {
+          action_type: string
+          count: number | null
+          created_at: string | null
+          id: string
+          user_id: string
+          window_start: string | null
+        }
+        Insert: {
+          action_type: string
+          count?: number | null
+          created_at?: string | null
+          id?: string
+          user_id: string
+          window_start?: string | null
+        }
+        Update: {
+          action_type?: string
+          count?: number | null
+          created_at?: string | null
+          id?: string
+          user_id?: string
+          window_start?: string | null
+        }
+        Relationships: []
+      }
       watchers: {
         Row: {
           created_at: string | null
@@ -1017,7 +1089,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_rate_limit: {
+        Args: {
+          p_action_type: string
+          p_max_count?: number
+          p_user_id: string
+          p_window_minutes?: number
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       alert_status: "active" | "resolved" | "cancelled" | "escalated"
