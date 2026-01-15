@@ -15,6 +15,7 @@ import Chat from "./pages/Chat";
 import Community from "./pages/Community";
 import Profile from "./pages/Profile";
 import Watchers from "./pages/Watchers";
+import NotificationSettings from "./pages/NotificationSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -97,6 +98,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Community />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/notifications"
+              element={
+                <ProtectedRoute>
+                  <NotificationSettings />
                 </ProtectedRoute>
               }
             />
