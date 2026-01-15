@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { MessageCircle, Shield, Bell, Settings } from "lucide-react";
+import { MessageCircle, Shield, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { NotificationBell } from "./NotificationBell";
 
 interface HeaderProps {
   title?: string;
@@ -36,10 +37,7 @@ export const Header = ({ title }: HeaderProps) => {
 
         {/* Right: Notifications & Settings */}
         <div className="flex items-center gap-1">
-          <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
-            <Bell className="w-5 h-5 text-muted-foreground" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-panic rounded-full" />
-          </button>
+          <NotificationBell />
           <Link
             to="/settings"
             className="p-2 rounded-lg hover:bg-secondary transition-colors"
