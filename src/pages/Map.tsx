@@ -7,8 +7,14 @@ import {
 import { BottomNav } from "@/components/BottomNav";
 import MapboxMap from "@/components/MapboxMap";
 import IncidentDetailsModal from "@/components/IncidentDetailsModal";
+import { NearYouStrip } from "@/components/map/NearYouStrip";
+import { IncidentPreviewCard } from "@/components/map/IncidentPreviewCard";
+import { HeatmapToggle } from "@/components/map/HeatmapToggle";
+import { LiveIndicator } from "@/components/map/LiveIndicator";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNearbyAlerts } from "@/hooks/useNearbyAlerts";
+import { useNotificationAlerts } from "@/hooks/useNotificationAlerts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -34,6 +40,8 @@ interface Alert {
   longitude: number;
   type: string;
   status: string;
+  created_at?: string;
+  description?: string | null;
 }
 
 interface SafetySession {
@@ -77,6 +85,7 @@ const Map = () => {
   const [ghostMode, setGhostMode] = useState(false);
   const [showAddPin, setShowAddPin] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
+  const [heatmapEnabled, setHeatmapEnabled] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedType, setSelectedType] = useState<MarkerType>("robbery");
   const [description, setDescription] = useState("");
@@ -86,9 +95,47 @@ const Map = () => {
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [watcherLocations, setWatcherLocations] = useState<WatcherLocation[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<Marker | null>(null);
+  const [previewMarker, setPreviewMarker] = useState<Marker | null>(null);
   
   const { latitude, longitude } = useGeolocation(!ghostMode);
   const { user } = useAuth();
+  const { playAlertSound, triggerVibration } = useNotificationAlerts();
+
+  // Combine markers and alerts for nearby detection
+  const allAlerts = [
+    ...markers.map(m => ({
+      id: m.id,
+      latitude: m.latitude,
+      longitude: m.longitude,
+      type: m.type,
+      status: m.status,
+      created_at: m.created_at,
+      description: m.description,
+    })),
+    ...alerts,
+  ];
+
+  const { nearbyAlert, isHighPriority, dismissAlert } = useNearbyAlerts({
+    userLat: latitude,
+    userLng: longitude,
+    alerts: allAlerts,
+    radiusMeters: 500,
+  });
+
+  // Count live/recent incidents
+  const liveCount = allAlerts.filter(a => {
+    if (a.status === "resolved") return false;
+    if (!a.created_at) return true;
+    return Date.now() - new Date(a.created_at).getTime() < 30 * 60 * 1000;
+  }).length;
+
+  // Trigger audio/vibration for high-priority nearby alerts
+  useEffect(() => {
+    if (nearbyAlert && isHighPriority) {
+      playAlertSound("high");
+      triggerVibration("high");
+    }
+  }, [nearbyAlert?.id, isHighPriority]);
 
   // Fetch active safety session for route display
   useEffect(() => {
@@ -160,7 +207,7 @@ const Map = () => {
         .select("*")
         .eq("status", "active");
 
-      if (alertsData) setAlerts(alertsData);
+      if (alertsData) setAlerts(alertsData as Alert[]);
     };
 
     fetchData();
@@ -194,7 +241,6 @@ const Map = () => {
     if (!user) return;
 
     const fetchWatcherLocations = async () => {
-      // Get accepted watchers (people watching me + people I watch)
       const { data: watcherRelations } = await supabase
         .from("watchers")
         .select("user_id, watcher_id")
@@ -206,7 +252,6 @@ const Map = () => {
         return;
       }
 
-      // Get unique watcher IDs (excluding current user)
       const watcherIds = [...new Set(
         watcherRelations.flatMap(r => [r.user_id, r.watcher_id])
           .filter(id => id !== user.id)
@@ -217,7 +262,6 @@ const Map = () => {
         return;
       }
 
-      // Fetch their locations and profiles
       const { data: locations } = await supabase
         .from("user_locations")
         .select("user_id, latitude, longitude, updated_at")
@@ -247,7 +291,6 @@ const Map = () => {
 
     fetchWatcherLocations();
 
-    // Real-time subscription for location updates
     const locationsChannel = supabase
       .channel("watcher-locations-realtime")
       .on(
@@ -282,6 +325,10 @@ const Map = () => {
     }
   }, [showAddPin]);
 
+  const handleMarkerClick = useCallback((marker: Marker) => {
+    setPreviewMarker(marker);
+  }, []);
+
   const handleCreateMarker = async () => {
     if (!user || !selectedLocation) return;
 
@@ -302,7 +349,6 @@ const Map = () => {
       setSelectedLocation(null);
       setDescription("");
 
-      // Trigger push notifications to nearby users
       if (data) {
         supabase.functions.invoke("send-incident-notification", {
           body: { marker: data },
@@ -317,6 +363,17 @@ const Map = () => {
     setDescription("");
   };
 
+  const handleViewNearbyOnMap = () => {
+    if (nearbyAlert) {
+      // Find the full marker data
+      const fullMarker = markers.find(m => m.id === nearbyAlert.id);
+      if (fullMarker) {
+        setPreviewMarker(fullMarker);
+      }
+      dismissAlert(nearbyAlert.id);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Map Container */}
@@ -328,7 +385,9 @@ const Map = () => {
           alerts={alerts}
           routes={routes}
           watchers={watcherLocations}
+          heatmapEnabled={heatmapEnabled}
           onMapClick={handleMapClick}
+          onMarkerClick={handleMarkerClick}
         />
 
         {/* Top Bar */}
@@ -352,6 +411,9 @@ const Map = () => {
                   }
                 </p>
               </div>
+              
+              {/* Live indicator */}
+              <LiveIndicator count={liveCount} />
             </motion.div>
 
             {/* Ghost Mode Toggle */}
@@ -369,9 +431,23 @@ const Map = () => {
           </div>
         </div>
 
+        {/* Near You Alert Strip */}
+        <AnimatePresence>
+          {nearbyAlert && !showAddPin && !previewMarker && (
+            <div className="absolute top-20 left-0 right-0 z-20">
+              <NearYouStrip
+                alert={nearbyAlert}
+                isHighPriority={isHighPriority}
+                onDismiss={() => dismissAlert(nearbyAlert.id)}
+                onViewOnMap={handleViewNearbyOnMap}
+              />
+            </div>
+          )}
+        </AnimatePresence>
+
         {/* Active Trip Banner */}
         <AnimatePresence>
-          {activeTrip && !showAddPin && (
+          {activeTrip && !showAddPin && !nearbyAlert && !previewMarker && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -405,32 +481,14 @@ const Map = () => {
           )}
         </AnimatePresence>
 
-        {/* Alert Banner */}
-        <AnimatePresence>
-          {alerts.length > 0 && !showAddPin && !activeTrip && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute top-20 left-4 right-4 z-10"
-            >
-              <div className="bg-destructive/95 backdrop-blur-sm text-destructive-foreground px-4 py-3 rounded-xl flex items-center gap-3 shadow-panic">
-                <div className="w-8 h-8 bg-destructive-foreground/20 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="w-4 h-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">
-                    {alerts.length} Active Alert{alerts.length !== 1 ? 's' : ''} Nearby
-                  </p>
-                  <p className="text-xs opacity-80">Tap markers for details</p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Right Side Actions */}
         <div className="absolute right-4 bottom-28 flex flex-col gap-3 z-10">
+          {/* Heatmap Toggle */}
+          <HeatmapToggle
+            enabled={heatmapEnabled}
+            onToggle={() => setHeatmapEnabled(!heatmapEnabled)}
+          />
+
           {/* Legend Toggle */}
           <motion.button
             whileTap={{ scale: 0.95 }}
@@ -517,6 +575,28 @@ const Map = () => {
                 </div>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Incident Preview Card (on marker tap) */}
+        <AnimatePresence>
+          {previewMarker && (
+            <IncidentPreviewCard
+              incident={previewMarker}
+              userLocation={latitude && longitude ? { lat: latitude, lng: longitude } : null}
+              onClose={() => setPreviewMarker(null)}
+              onViewDetails={() => {
+                setSelectedMarker(previewMarker);
+                setPreviewMarker(null);
+              }}
+              onNavigate={() => {
+                // Open in external maps app
+                window.open(
+                  `https://www.google.com/maps/dir/?api=1&destination=${previewMarker.latitude},${previewMarker.longitude}`,
+                  "_blank"
+                );
+              }}
+            />
           )}
         </AnimatePresence>
 
