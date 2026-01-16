@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  X, MapPin, Clock, AlertTriangle, Mic, Play, Pause, 
-  Shield, CheckCircle, ExternalLink
+  X, MapPin, Clock, User, AlertTriangle, Mic, Play, Pause, 
+  Shield, CheckCircle, ExternalLink, Shirt, Car, Image as ImageIcon
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
-interface Alert {
+interface AmberAlert {
   id: string;
   type: string;
   latitude: number;
@@ -24,11 +24,42 @@ interface Alert {
   user_id: string;
 }
 
-interface AlertDetailsModalProps {
-  alert: Alert;
+interface AmberAlertDetailsModalProps {
+  alert: AmberAlert;
   onClose: () => void;
   userLocation?: { latitude: number; longitude: number } | null;
 }
+
+// Parse structured description from the amber alert
+const parseDescription = (description: string | null) => {
+  if (!description) return { main: "", outfit: "", vehicle: "", color: "", plate: "", photoUrl: "" };
+  
+  const parts = description.split(". ");
+  let main = "";
+  let outfit = "";
+  let vehicle = "";
+  let color = "";
+  let plate = "";
+  let photoUrl = "";
+  
+  parts.forEach(part => {
+    if (part.startsWith("Outfit:")) {
+      outfit = part.replace("Outfit:", "").trim();
+    } else if (part.startsWith("Vehicle:")) {
+      vehicle = part.replace("Vehicle:", "").trim();
+    } else if (part.startsWith("Color:")) {
+      color = part.replace("Color:", "").trim();
+    } else if (part.startsWith("Plate:")) {
+      plate = part.replace("Plate:", "").trim();
+    } else if (part.startsWith("Photo:")) {
+      photoUrl = part.replace("Photo:", "").trim();
+    } else if (!part.startsWith("Photo:")) {
+      main = part;
+    }
+  });
+  
+  return { main, outfit, vehicle, color, plate, photoUrl };
+};
 
 // Format distance in a human readable way
 const formatDistance = (km: number): string => {
@@ -49,33 +80,22 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 };
 
-// Get human-readable alert type label
-const getAlertTypeLabel = (type: string): string => {
-  const labels: Record<string, string> = {
-    panic: "Panic Alert",
-    robbery: "Robbery Report",
-    assault: "Assault Report",
-    suspicious: "Suspicious Activity",
-    accident: "Accident Report",
-    other: "Incident Report",
-  };
-  return labels[type] || "Alert";
-};
-
-export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetailsModalProps) => {
+export const AmberAlertDetailsModal = ({ alert, onClose, userLocation }: AmberAlertDetailsModalProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [areaName, setAreaName] = useState<string>("Loading location...");
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
-
+  
   const isOwner = user?.id === alert.user_id;
   const isResolved = alert.status === "resolved";
   const isActive = alert.status === "active";
-  const isPanic = alert.type === "panic";
-
+  
+  const parsedDescription = parseDescription(alert.description);
+  
   // Calculate distance
   const distance = userLocation 
     ? calculateDistance(userLocation.latitude, userLocation.longitude, alert.latitude, alert.longitude)
@@ -85,6 +105,7 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
   useEffect(() => {
     const fetchAreaName = async () => {
       try {
+        // Using Mapbox reverse geocoding (if token available) or fallback
         const response = await fetch(
           `https://api.mapbox.com/geocoding/v5/mapbox.places/${alert.longitude},${alert.latitude}.json?types=neighborhood,locality,place&limit=1&access_token=pk.eyJ1IjoiZGlkaXJlbG9hZGVkZmlsbXMiLCJhIjoiY21oMXo4MnhtMHN0bnNzcXAzYndweGs0MyJ9.Q7conONwJpAL7oVetI77Jg`
         );
@@ -112,7 +133,7 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
     setIsPlaying(!isPlaying);
   };
 
-  const handleResolve = async () => {
+  const handleSafeAndSound = async () => {
     setIsResolving(true);
     
     const { error } = await supabase
@@ -126,7 +147,7 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
     if (error) {
       toast.error("Failed to update alert status");
     } else {
-      toast.success("Alert marked as resolved");
+      toast.success("🎉 Marked as Safe & Sound!");
       setShowConfirmation(false);
       onClose();
     }
@@ -162,13 +183,13 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
           className="w-full max-w-md bg-card rounded-2xl overflow-hidden max-h-[85vh] overflow-y-auto"
         >
           {/* Header */}
-          <div className={`p-4 ${isResolved ? "bg-success" : isPanic ? "bg-destructive" : "bg-primary"}`}>
+          <div className={`p-4 ${isResolved ? "bg-success" : "bg-warning"}`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <AlertTriangle className={`w-6 h-6 ${isResolved ? "text-success-foreground" : "text-white"}`} />
+                <AlertTriangle className={`w-6 h-6 ${isResolved ? "text-success-foreground" : "text-warning-foreground"}`} />
                 <div>
-                  <h2 className={`text-lg font-bold ${isResolved ? "text-success-foreground" : "text-white"}`}>
-                    {getAlertTypeLabel(alert.type)}
+                  <h2 className={`text-lg font-bold ${isResolved ? "text-success-foreground" : "text-warning-foreground"}`}>
+                    Amber Alert
                   </h2>
                   <div className="flex items-center gap-2 mt-0.5">
                     <Badge 
@@ -176,13 +197,13 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
                       className={`text-xs font-medium ${
                         isResolved 
                           ? "bg-success-foreground/10 text-success-foreground border-success-foreground/20" 
-                          : "bg-white/10 text-white border-white/20"
+                          : "bg-warning-foreground/10 text-warning-foreground border-warning-foreground/20"
                       }`}
                     >
                       {isResolved ? (
                         <span className="flex items-center gap-1">
                           <CheckCircle className="w-3 h-3" />
-                          Resolved
+                          Resolved • Safe & Sound
                         </span>
                       ) : (
                         <span className="flex items-center gap-1">
@@ -196,9 +217,9 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-white/10 transition-colors"
+                className={`p-2 rounded-full hover:bg-black/10 transition-colors`}
               >
-                <X className={`w-5 h-5 ${isResolved ? "text-success-foreground" : "text-white"}`} />
+                <X className={`w-5 h-5 ${isResolved ? "text-success-foreground" : "text-warning-foreground"}`} />
               </button>
             </div>
           </div>
@@ -216,12 +237,12 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
 
             {/* Location - Human Readable */}
             <div className="flex items-center gap-3 p-3 bg-secondary rounded-xl">
-              <MapPin className="w-5 h-5 text-destructive" />
+              <MapPin className="w-5 h-5 text-warning" />
               <div className="flex-1">
                 <p className="text-sm font-medium">Location</p>
                 <p className="text-xs text-muted-foreground">{areaName}</p>
                 {distance !== null && (
-                  <p className="text-xs text-primary font-medium mt-1">
+                  <p className="text-xs text-warning font-medium mt-1">
                     📍 {formatDistance(distance)}
                   </p>
                 )}
@@ -237,11 +258,62 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
               </Button>
             </div>
 
+            {/* Photo - Displayed Inline */}
+            {parsedDescription.photoUrl && (
+              <div className="rounded-xl overflow-hidden">
+                <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  Missing Person Photo
+                </p>
+                <img
+                  src={parsedDescription.photoUrl}
+                  alt="Missing person"
+                  className="w-full h-56 object-cover rounded-xl cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setFullscreenImage(parsedDescription.photoUrl)}
+                />
+              </div>
+            )}
+
             {/* Description */}
-            {alert.description && (
+            {parsedDescription.main && (
               <div className="p-3 bg-secondary rounded-xl">
-                <p className="text-sm font-medium mb-1">Description</p>
-                <p className="text-sm text-muted-foreground">{alert.description}</p>
+                <p className="text-sm font-medium mb-1 flex items-center gap-2">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                  Description
+                </p>
+                <p className="text-sm text-muted-foreground">{parsedDescription.main}</p>
+              </div>
+            )}
+
+            {/* Outfit */}
+            {parsedDescription.outfit && (
+              <div className="p-3 bg-secondary rounded-xl">
+                <p className="text-sm font-medium mb-1 flex items-center gap-2">
+                  <Shirt className="w-4 h-4 text-muted-foreground" />
+                  Outfit
+                </p>
+                <p className="text-sm text-muted-foreground">{parsedDescription.outfit}</p>
+              </div>
+            )}
+
+            {/* Vehicle Details */}
+            {(parsedDescription.vehicle || parsedDescription.color || parsedDescription.plate) && (
+              <div className="p-3 bg-secondary rounded-xl space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <Car className="w-4 h-4 text-muted-foreground" />
+                  Vehicle Details
+                </p>
+                {parsedDescription.vehicle && (
+                  <p className="text-sm text-muted-foreground">Make/Model: {parsedDescription.vehicle}</p>
+                )}
+                {parsedDescription.color && (
+                  <p className="text-sm text-muted-foreground">Color: {parsedDescription.color}</p>
+                )}
+                {parsedDescription.plate && (
+                  <p className="text-sm font-mono bg-card px-2 py-1 rounded inline-block">
+                    Plate: {parsedDescription.plate}
+                  </p>
+                )}
               </div>
             )}
 
@@ -249,19 +321,19 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
             {alert.audio_url && (
               <div className="p-3 bg-secondary rounded-xl">
                 <div className="flex items-center gap-3">
-                  <Mic className="w-5 h-5 text-destructive" />
+                  <Mic className="w-5 h-5 text-warning" />
                   <div className="flex-1">
                     <p className="text-sm font-medium">Audio Evidence</p>
                     <p className="text-xs text-muted-foreground">Recorded at scene</p>
                   </div>
                   <button
                     onClick={toggleAudio}
-                    className="w-10 h-10 bg-destructive hover:bg-destructive/90 rounded-full flex items-center justify-center transition-colors"
+                    className="w-10 h-10 bg-warning hover:bg-warning/90 rounded-full flex items-center justify-center transition-colors"
                   >
                     {isPlaying ? (
-                      <Pause className="w-5 h-5 text-white" />
+                      <Pause className="w-5 h-5 text-warning-foreground" />
                     ) : (
-                      <Play className="w-5 h-5 text-white ml-0.5" />
+                      <Play className="w-5 h-5 text-warning-foreground ml-0.5" />
                     )}
                   </button>
                 </div>
@@ -288,14 +360,14 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
 
           {/* Footer */}
           <div className="p-4 border-t border-border space-y-2">
-            {/* Resolve Button - Only for owner and active alerts */}
+            {/* Safe & Sound Button - Only for owner and active alerts */}
             {isOwner && isActive && (
               <Button
                 onClick={() => setShowConfirmation(true)}
                 className="w-full h-12 bg-success hover:bg-success/90 text-success-foreground font-semibold"
               >
                 <CheckCircle className="w-5 h-5 mr-2" />
-                Mark as Resolved
+                Mark as Safe & Sound
               </Button>
             )}
             
@@ -330,9 +402,9 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
               <div className="w-16 h-16 mx-auto bg-success/10 rounded-full flex items-center justify-center mb-4">
                 <CheckCircle className="w-8 h-8 text-success" />
               </div>
-              <h3 className="text-lg font-bold mb-2">Resolve This Alert?</h3>
+              <h3 className="text-lg font-bold mb-2">Confirm Safe & Sound</h3>
               <p className="text-sm text-muted-foreground mb-6">
-                Are you sure this incident has been resolved? This will close the alert and notify the community.
+                Are you sure the missing person has been found and is safe? This will close the alert and notify the community.
               </p>
               <div className="flex gap-3">
                 <Button
@@ -344,7 +416,7 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleResolve}
+                  onClick={handleSafeAndSound}
                   className="flex-1 bg-success hover:bg-success/90 text-success-foreground"
                   disabled={isResolving}
                 >
@@ -352,6 +424,31 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
                 </Button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Fullscreen Image Modal */}
+      <AnimatePresence>
+        {fullscreenImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black z-[60] flex items-center justify-center"
+            onClick={() => setFullscreenImage(null)}
+          >
+            <button
+              onClick={() => setFullscreenImage(null)}
+              className="absolute top-4 right-4 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors z-10"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+            <img
+              src={fullscreenImage}
+              alt="Missing person"
+              className="max-w-full max-h-full object-contain"
+            />
           </motion.div>
         )}
       </AnimatePresence>

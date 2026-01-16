@@ -4,6 +4,7 @@ import { AlertTriangle, Shield, Mic, X, Camera, Car, Activity, Clock, Radio, Che
 import { BottomNav } from "@/components/BottomNav";
 import { MiniMap } from "@/components/MiniMap";
 import { AlertDetailsModal } from "@/components/AlertDetailsModal";
+import { AmberAlertDetailsModal } from "@/components/AmberAlertDetailsModal";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAudioRecording } from "@/hooks/useAudioRecording";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -500,15 +501,21 @@ const Alerts = () => {
           )}
         </AnimatePresence>
 
-        {/* Alert Details Modal */}
+        {/* Alert Details Modal - Use AmberAlertDetailsModal for amber alerts */}
         <AnimatePresence>
-          {selectedAlert && (
+          {selectedAlert && selectedAlert.type === "amber" ? (
+            <AmberAlertDetailsModal
+              alert={selectedAlert}
+              onClose={() => setSelectedAlert(null)}
+              userLocation={userLocation}
+            />
+          ) : selectedAlert ? (
             <AlertDetailsModal
               alert={selectedAlert}
               onClose={() => setSelectedAlert(null)}
               userLocation={userLocation}
             />
-          )}
+          ) : null}
         </AnimatePresence>
 
       </main>
