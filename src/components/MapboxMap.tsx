@@ -2,6 +2,14 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  addIncidentSource,
+  addIncidentLayers,
+  addHeatmapLayer,
+  updateIncidentSource,
+  toGeoJSONFeatures,
+  toggleHeatmap,
+} from "./map/MapLayers";
 
 interface RouteData {
   id: string;
@@ -22,51 +30,51 @@ interface WatcherData {
   updatedAt: string;
 }
 
+interface MarkerData {
+  id: string;
+  latitude: number;
+  longitude: number;
+  type: string;
+  description?: string | null;
+  status?: string;
+  verified_count?: number;
+  created_at?: string;
+}
+
+interface AlertData {
+  id: string;
+  latitude: number;
+  longitude: number;
+  type: string;
+  status: string;
+  created_at?: string;
+}
+
 interface MapboxMapProps {
   onMapLoad?: (map: mapboxgl.Map) => void;
   onLocationUpdate?: (lat: number, lng: number) => void;
+  onMarkerClick?: (marker: MarkerData) => void;
   showUserLocation?: boolean;
-  markers?: Array<{
-    id: string;
-    latitude: number;
-    longitude: number;
-    type: string;
-    description?: string;
-  }>;
-  alerts?: Array<{
-    id: string;
-    latitude: number;
-    longitude: number;
-    type: string;
-    status: string;
-  }>;
+  markers?: MarkerData[];
+  alerts?: AlertData[];
   routes?: RouteData[];
   watchers?: WatcherData[];
   onMapClick?: (lat: number, lng: number) => void;
+  heatmapEnabled?: boolean;
   className?: string;
 }
-
-const markerColors: Record<string, string> = {
-  robbery: "#EF4444",
-  assault: "#DC2626",
-  kidnapping: "#B91C1C",
-  accident: "#F59E0B",
-  suspicious: "#8B5CF6",
-  danger: "#7C3AED",
-  other: "#6B7280",
-  panic: "#EF4444",
-  amber: "#F59E0B",
-};
 
 export const MapboxMap = ({
   onMapLoad,
   onLocationUpdate,
+  onMarkerClick,
   showUserLocation = true,
   markers = [],
   alerts = [],
   routes = [],
   watchers = [],
   onMapClick,
+  heatmapEnabled = false,
   className = "",
 }: MapboxMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -74,7 +82,6 @@ export const MapboxMap = ({
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const destinationMarkerRefs = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const watcherMarkerRefs = useRef<Map<string, mapboxgl.Marker>>(new Map());
-  const markerRefs = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -102,7 +109,6 @@ export const MapboxMap = ({
 
     mapboxgl.accessToken = mapboxToken;
 
-    // Default to Windhoek, Namibia
     const defaultCenter: [number, number] = [17.0832, -22.5609];
 
     map.current = new mapboxgl.Map({
@@ -110,11 +116,12 @@ export const MapboxMap = ({
       style: "mapbox://styles/mapbox/dark-v11",
       center: defaultCenter,
       zoom: 13,
-      pitch: 0,
+      pitch: 45,
+      bearing: -17,
     });
 
     map.current.addControl(
-      new mapboxgl.NavigationControl({ visualizePitch: false }),
+      new mapboxgl.NavigationControl({ visualizePitch: true }),
       "top-right"
     );
 
@@ -128,15 +135,102 @@ export const MapboxMap = ({
     );
 
     map.current.on("load", () => {
+      if (!map.current) return;
+      
+      // Add sources and layers
+      addIncidentSource(map.current);
+      addHeatmapLayer(map.current);
+      addIncidentLayers(map.current);
+      
+      // Set initial heatmap visibility
+      toggleHeatmap(map.current, heatmapEnabled);
+      
       setMapLoaded(true);
       if (onMapLoad && map.current) {
         onMapLoad(map.current);
       }
     });
 
+    // Handle cluster click - zoom in
+    map.current.on("click", "clusters", (e) => {
+      if (!map.current) return;
+      const features = map.current.queryRenderedFeatures(e.point, {
+        layers: ["clusters"],
+      });
+      if (!features.length) return;
+
+      const clusterId = features[0].properties?.cluster_id;
+      const source = map.current.getSource("incidents") as mapboxgl.GeoJSONSource;
+      
+      source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+        if (err || !map.current) return;
+        
+        const geometry = features[0].geometry;
+        if (geometry.type === "Point") {
+          map.current.easeTo({
+            center: geometry.coordinates as [number, number],
+            zoom: zoom || 14,
+            duration: 500,
+          });
+        }
+      });
+    });
+
+    // Handle individual marker click
+    map.current.on("click", "unclustered-point", (e) => {
+      if (!e.features?.length) return;
+      
+      const feature = e.features[0];
+      const props = feature.properties;
+      
+      if (onMarkerClick && props) {
+        const geometry = feature.geometry;
+        if (geometry.type === "Point") {
+          const [longitude, latitude] = geometry.coordinates;
+          onMarkerClick({
+            id: props.id,
+            latitude,
+            longitude,
+            type: props.type,
+            description: props.description,
+            status: props.status,
+            verified_count: props.verified ? 3 : 0,
+            created_at: props.created_at,
+          });
+          
+          // Ease camera to marker
+          map.current?.easeTo({
+            center: [longitude, latitude],
+            zoom: Math.max(map.current.getZoom(), 15),
+            duration: 500,
+          });
+        }
+      }
+    });
+
+    // Change cursor on hover
+    map.current.on("mouseenter", "clusters", () => {
+      if (map.current) map.current.getCanvas().style.cursor = "pointer";
+    });
+    map.current.on("mouseleave", "clusters", () => {
+      if (map.current) map.current.getCanvas().style.cursor = "";
+    });
+    map.current.on("mouseenter", "unclustered-point", () => {
+      if (map.current) map.current.getCanvas().style.cursor = "pointer";
+    });
+    map.current.on("mouseleave", "unclustered-point", () => {
+      if (map.current) map.current.getCanvas().style.cursor = "";
+    });
+
     // Handle map click for adding pins
     if (onMapClick) {
       map.current.on("click", (e) => {
+        // Don't trigger if clicking on a feature
+        const features = map.current?.queryRenderedFeatures(e.point, {
+          layers: ["clusters", "unclustered-point"],
+        });
+        if (features && features.length > 0) return;
+        
         onMapClick(e.lngLat.lat, e.lngLat.lng);
       });
     }
@@ -147,7 +241,14 @@ export const MapboxMap = ({
         map.current = null;
       }
     };
-  }, [mapboxToken, onMapLoad, onMapClick]);
+  }, [mapboxToken, onMapLoad, onMapClick, onMarkerClick, heatmapEnabled]);
+
+  // Toggle heatmap when prop changes
+  useEffect(() => {
+    if (map.current && mapLoaded) {
+      toggleHeatmap(map.current, heatmapEnabled);
+    }
+  }, [heatmapEnabled, mapLoaded]);
 
   // Get user location
   useEffect(() => {
@@ -201,61 +302,33 @@ export const MapboxMap = ({
     }
   }, [userLocation, mapLoaded, showUserLocation]);
 
-  // Update incident markers
+  // Update incident markers using GeoJSON source
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
 
-    // Clear old markers that are no longer in the list
-    const currentIds = new Set([...markers.map((m) => m.id), ...alerts.map((a) => a.id)]);
-    markerRefs.current.forEach((marker, id) => {
-      if (!currentIds.has(id)) {
-        marker.remove();
-        markerRefs.current.delete(id);
-      }
-    });
+    // Combine markers and alerts
+    const allIncidents = [
+      ...markers.map((m) => ({ ...m, status: m.status || "active" })),
+      ...alerts.map((a) => ({
+        id: a.id,
+        latitude: a.latitude,
+        longitude: a.longitude,
+        type: a.type,
+        status: a.status,
+        created_at: a.created_at,
+        description: null,
+      })),
+    ];
 
-    // Add/update markers
-    [...markers, ...alerts].forEach((item) => {
-      if (markerRefs.current.has(item.id)) return;
-
-      const color = markerColors[item.type] || markerColors.other;
-      const isAlert = "status" in item;
-
-      const el = document.createElement("div");
-      el.className = "incident-marker";
-      el.innerHTML = `
-        <div class="relative cursor-pointer transform hover:scale-110 transition-transform">
-          ${isAlert ? '<div class="absolute -inset-2 rounded-full animate-ping" style="background-color: ' + color + '40"></div>' : ""}
-          <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-lg" style="background-color: ${color}">
-            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-        </div>
-      `;
-
-      const popup = new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(`
-        <div class="p-2 text-sm">
-          <strong class="capitalize">${item.type}</strong>
-          ${"description" in item && item.description ? `<p class="text-gray-600 mt-1">${item.description}</p>` : ""}
-        </div>
-      `);
-
-      const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([item.longitude, item.latitude])
-        .setPopup(popup)
-        .addTo(map.current!);
-
-      markerRefs.current.set(item.id, marker);
-    });
+    const features = toGeoJSONFeatures(allIncidents);
+    updateIncidentSource(map.current, features);
   }, [markers, alerts, mapLoaded]);
 
   // Update watcher markers
   useEffect(() => {
     if (!map.current || !mapLoaded) return;
 
-    // Get current watcher IDs
-    const currentWatcherIds = new Set(watchers.map(w => w.id));
+    const currentWatcherIds = new Set(watchers.map((w) => w.id));
 
     // Remove old watcher markers
     watcherMarkerRefs.current.forEach((marker, id) => {
@@ -268,19 +341,16 @@ export const MapboxMap = ({
     // Add/update watcher markers
     watchers.forEach((watcher) => {
       const existingMarker = watcherMarkerRefs.current.get(watcher.id);
-      
+
       if (existingMarker) {
-        // Update position of existing marker
         existingMarker.setLngLat([watcher.longitude, watcher.latitude]);
       } else {
-        // Create new watcher marker
         const el = document.createElement("div");
         el.className = "watcher-marker";
-        
-        // Get initials from name
+
         const initials = watcher.name
           .split(" ")
-          .map(n => n[0])
+          .map((n) => n[0])
           .join("")
           .toUpperCase()
           .slice(0, 2);
@@ -289,9 +359,10 @@ export const MapboxMap = ({
           <div class="relative cursor-pointer transform hover:scale-110 transition-transform">
             <div class="absolute -inset-1.5 bg-cyan-400/30 rounded-full animate-pulse"></div>
             <div class="w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 border-white overflow-hidden" style="background: linear-gradient(135deg, #06B6D4, #0891B2)">
-              ${watcher.avatarUrl 
-                ? `<img src="${watcher.avatarUrl}" alt="${watcher.name}" class="w-full h-full object-cover" />`
-                : `<span class="text-white text-sm font-bold">${initials}</span>`
+              ${
+                watcher.avatarUrl
+                  ? `<img src="${watcher.avatarUrl}" alt="${watcher.name}" class="w-full h-full object-cover" />`
+                  : `<span class="text-white text-sm font-bold">${initials}</span>`
               }
             </div>
           </div>
@@ -299,7 +370,12 @@ export const MapboxMap = ({
 
         const lastUpdate = new Date(watcher.updatedAt);
         const minutesAgo = Math.floor((Date.now() - lastUpdate.getTime()) / 60000);
-        const timeAgo = minutesAgo < 1 ? "Just now" : minutesAgo < 60 ? `${minutesAgo}m ago` : `${Math.floor(minutesAgo / 60)}h ago`;
+        const timeAgo =
+          minutesAgo < 1
+            ? "Just now"
+            : minutesAgo < 60
+            ? `${minutesAgo}m ago`
+            : `${Math.floor(minutesAgo / 60)}h ago`;
 
         const popup = new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(`
           <div class="p-3 text-sm">
@@ -328,11 +404,11 @@ export const MapboxMap = ({
 
     const drawRoutes = async () => {
       // Remove existing route layers and sources
-      routes.forEach((_, index) => {
-        const sourceId = `route-source-${index}`;
-        const layerId = `route-layer-${index}`;
-        const outlineLayerId = `route-outline-${index}`;
-        
+      for (let i = 0; i < 10; i++) {
+        const sourceId = `route-source-${i}`;
+        const layerId = `route-layer-${i}`;
+        const outlineLayerId = `route-outline-${i}`;
+
         if (map.current?.getLayer(layerId)) {
           map.current.removeLayer(layerId);
         }
@@ -342,7 +418,7 @@ export const MapboxMap = ({
         if (map.current?.getSource(sourceId)) {
           map.current.removeSource(sourceId);
         }
-      });
+      }
 
       // Clear destination markers
       destinationMarkerRefs.current.forEach((marker) => marker.remove());
@@ -356,17 +432,15 @@ export const MapboxMap = ({
         const outlineLayerId = `route-outline-${index}`;
 
         try {
-          // Fetch route from Mapbox Directions API
           const response = await fetch(
             `https://api.mapbox.com/directions/v5/mapbox/driving/${route.startLng},${route.startLat};${route.endLng},${route.endLat}?geometries=geojson&overview=full&access_token=${mapboxToken}`
           );
-          
+
           const data = await response.json();
-          
+
           if (data.routes && data.routes[0]) {
             const routeGeometry = data.routes[0].geometry;
 
-            // Add route source
             map.current?.addSource(sourceId, {
               type: "geojson",
               data: {
@@ -376,7 +450,6 @@ export const MapboxMap = ({
               },
             });
 
-            // Add route outline (for glow effect)
             map.current?.addLayer({
               id: outlineLayerId,
               type: "line",
@@ -392,7 +465,6 @@ export const MapboxMap = ({
               },
             });
 
-            // Add route line
             map.current?.addLayer({
               id: layerId,
               type: "line",
@@ -464,7 +536,7 @@ export const MapboxMap = ({
         const sourceId = `route-source-${i}`;
         const layerId = `route-layer-${i}`;
         const outlineLayerId = `route-outline-${i}`;
-        
+
         if (map.current?.getLayer(layerId)) {
           map.current.removeLayer(layerId);
         }
@@ -491,23 +563,42 @@ export const MapboxMap = ({
     }
   }, [userLocation]);
 
+  // Fly to specific location
+  const flyTo = useCallback((lng: number, lat: number, zoom = 15) => {
+    if (map.current) {
+      map.current.flyTo({
+        center: [lng, lat],
+        zoom,
+        duration: 1000,
+      });
+    }
+  }, []);
+
   if (!mapboxToken) {
     return (
       <div className={`flex items-center justify-center bg-card ${className}`}>
         <div className="text-center space-y-4 p-6">
           <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
             <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+              />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </div>
-          <p className="text-muted-foreground text-sm">Loading map...</p>
+          <div>
+            <p className="font-medium text-foreground">Loading map...</p>
+            <p className="text-sm text-muted-foreground">Getting your location</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  return <div ref={mapContainer} className={className} />;
+  return <div ref={mapContainer} className={`w-full h-full ${className}`} />;
 };
 
 export default MapboxMap;
