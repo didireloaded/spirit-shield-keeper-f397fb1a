@@ -1,19 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, Shield, Mic, X, Camera, Car, Activity, Clock, Radio, ChevronDown, Lightbulb } from "lucide-react";
+import { AlertTriangle, Shield, Mic, X, Camera, Car, Activity, Clock, Radio, ChevronDown, Lightbulb, MapPinOff } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { MiniMap } from "@/components/MiniMap";
 import { AlertDetailsModal } from "@/components/AlertDetailsModal";
 import { AmberAlertDetailsModal } from "@/components/AmberAlertDetailsModal";
+import { EmptyState } from "@/components/EmptyState";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAudioRecording } from "@/hooks/useAudioRecording";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
+import { useRateLimit } from "@/hooks/useRateLimit";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
 interface Marker {
   id: string;
   latitude: number;
@@ -24,7 +25,8 @@ interface Marker {
 const Alerts = () => {
   const { alerts, loading, createAlert } = useAlerts();
   const { isRecording, startRecording, stopRecording } = useAudioRecording();
-  const { latitude, longitude } = useGeolocation();
+  const { latitude, longitude, error: locationError } = useGeolocation();
+  const { checkSOSLimit, checkAmberLimit, checking: rateLimitChecking } = useRateLimit();
   const { uploading: photoUploading, previewUrl: amberPhotoPreview, selectAndUpload: selectAmberPhoto, photoUrl: amberPhotoUrl, clearPhoto: clearAmberPhoto } = usePhotoUpload({
     bucket: "post-images",
     onSuccess: () => toast.success("Photo uploaded successfully"),
@@ -101,6 +103,10 @@ const Alerts = () => {
       return;
     }
 
+    // Check rate limit before allowing SOS
+    const allowed = await checkSOSLimit();
+    if (!allowed) return;
+
     await startRecording();
     const { data, error } = await createAlert("panic", latitude, longitude, "Panic alert triggered");
 
@@ -113,13 +119,17 @@ const Alerts = () => {
       setActiveAlertId(data.id);
       toast.success("🚨 PANIC alert activated! Recording audio...");
     }
-  }, [isRecording, latitude, longitude, startRecording, stopRecording, createAlert]);
+  }, [isRecording, latitude, longitude, startRecording, stopRecording, createAlert, checkSOSLimit]);
 
   const handleAmberSubmit = useCallback(async () => {
     if (!latitude || !longitude) {
       toast.error("Unable to get your location. Please enable GPS.");
       return;
     }
+
+    // Check rate limit for Amber alerts
+    const allowed = await checkAmberLimit();
+    if (!allowed) return;
 
     const description = [
       amberFormData.description,
@@ -153,7 +163,7 @@ const Alerts = () => {
       });
       clearAmberPhoto();
     }
-  }, [latitude, longitude, amberFormData, amberPhotoUrl, startRecording, createAlert, clearAmberPhoto]);
+  }, [latitude, longitude, amberFormData, amberPhotoUrl, startRecording, createAlert, clearAmberPhoto, checkAmberLimit]);
 
   const activeAlerts = alerts.filter((a) => a.status === "active");
   const userLocation = latitude && longitude ? { latitude, longitude } : null;

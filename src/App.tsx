@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { NetworkStatus } from "@/components/NetworkStatus";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Map from "./pages/Map";
@@ -24,6 +25,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
+        <NetworkStatus />
         <Toaster />
         <Sonner />
         <BrowserRouter>
