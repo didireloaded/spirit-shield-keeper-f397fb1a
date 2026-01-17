@@ -11,10 +11,12 @@ import { NearYouStrip } from "@/components/map/NearYouStrip";
 import { IncidentPreviewCard } from "@/components/map/IncidentPreviewCard";
 import { HeatmapToggle } from "@/components/map/HeatmapToggle";
 import { LiveIndicator } from "@/components/map/LiveIndicator";
+import { EmptyState } from "@/components/EmptyState";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNearbyAlerts } from "@/hooks/useNearbyAlerts";
 import { useNotificationAlerts } from "@/hooks/useNotificationAlerts";
+import { useRateLimit } from "@/hooks/useRateLimit";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -97,9 +99,10 @@ const Map = () => {
   const [selectedMarker, setSelectedMarker] = useState<Marker | null>(null);
   const [previewMarker, setPreviewMarker] = useState<Marker | null>(null);
   
-  const { latitude, longitude } = useGeolocation(!ghostMode);
+  const { latitude, longitude, error: locationError } = useGeolocation(!ghostMode);
   const { user } = useAuth();
   const { playAlertSound, triggerVibration } = useNotificationAlerts();
+  const { checkIncidentLimit, checking: rateLimitChecking } = useRateLimit();
 
   // Combine markers and alerts for nearby detection
   const allAlerts = [
@@ -331,6 +334,10 @@ const Map = () => {
 
   const handleCreateMarker = async () => {
     if (!user || !selectedLocation) return;
+
+    // Check rate limit before allowing report
+    const allowed = await checkIncidentLimit();
+    if (!allowed) return;
 
     const { data, error } = await supabase.from("markers").insert({
       user_id: user.id,

@@ -26,6 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
+import { EmptyState } from "@/components/EmptyState";
 import {
   useCommunityPosts,
   useCommunityComments,
@@ -35,6 +36,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { useRateLimit } from "@/hooks/useRateLimit";
 
 type IncidentType = "danger" | "warning" | "info";
 
@@ -87,6 +89,7 @@ export default function Community() {
   const { posts, loading, creating, createPost, uploadImage } = useCommunityPosts();
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const { checkRateLimit } = useRateLimit();
 
   // Create post state
   const [postContent, setPostContent] = useState("");
