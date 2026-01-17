@@ -35,7 +35,36 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Authenticate the caller
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create client with user's token to verify authentication
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userSupabase.auth.getClaims(token);
+
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: "Invalid auth token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userId = claimsData.claims.sub;
+
+    // Use service role for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { marker } = await req.json() as { marker: MarkerPayload };
@@ -44,6 +73,14 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Marker data required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify the caller owns this marker
+    if (marker.user_id !== userId) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: You can only send notifications for your own markers" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -95,10 +132,6 @@ serve(async (req) => {
 
     console.log("[Notification] Found", subscriptions?.length || 0, "push subscriptions");
 
-    // For web push notifications, we'd need a VAPID key setup
-    // For now, we'll store notifications in a table for the client to poll
-    // This approach works without additional infrastructure
-
     // Create notification records for each nearby user
     const notifications = usersToNotify.map(user => {
       const distance = calculateDistance(
@@ -124,13 +157,11 @@ serve(async (req) => {
       };
     });
 
-    // Check if notifications table exists, if not we'll create it
     const { error: insertError } = await supabase
       .from("notifications")
       .insert(notifications);
 
     if (insertError) {
-      // If table doesn't exist, log but don't fail
       console.log("[Notification] Could not insert notifications:", insertError.message);
     } else {
       console.log("[Notification] Created", notifications.length, "notification records");

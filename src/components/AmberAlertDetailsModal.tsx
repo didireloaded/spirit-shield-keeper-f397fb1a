@@ -101,13 +101,20 @@ export const AmberAlertDetailsModal = ({ alert, onClose, userLocation }: AmberAl
     ? calculateDistance(userLocation.latitude, userLocation.longitude, alert.latitude, alert.longitude)
     : null;
 
-  // Reverse geocode to get area name
+  // Reverse geocode to get area name using authenticated edge function
   useEffect(() => {
     const fetchAreaName = async () => {
       try {
-        // Using Mapbox reverse geocoding (if token available) or fallback
+        // Get Mapbox token from edge function
+        const { data: tokenData, error: tokenError } = await supabase.functions.invoke('get-mapbox-token');
+        
+        if (tokenError || !tokenData?.token) {
+          setAreaName("Unknown area");
+          return;
+        }
+
         const response = await fetch(
-          `https://api.mapbox.com/geocoding/v5/mapbox.places/${alert.longitude},${alert.latitude}.json?types=neighborhood,locality,place&limit=1&access_token=pk.eyJ1IjoiZGlkaXJlbG9hZGVkZmlsbXMiLCJhIjoiY21oMXo4MnhtMHN0bnNzcXAzYndweGs0MyJ9.Q7conONwJpAL7oVetI77Jg`
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${alert.longitude},${alert.latitude}.json?types=neighborhood,locality,place&limit=1&access_token=${tokenData.token}`
         );
         const data = await response.json();
         if (data.features && data.features.length > 0) {
