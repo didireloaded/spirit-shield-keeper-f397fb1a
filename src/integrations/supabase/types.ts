@@ -94,6 +94,83 @@ export type Database = {
         }
         Relationships: []
       }
+      api_keys: {
+        Row: {
+          allowed_origins: string[] | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          key_hash: string
+          partner_name: string
+          permissions: Json | null
+          rate_limit: number | null
+          updated_at: string
+        }
+        Insert: {
+          allowed_origins?: string[] | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash: string
+          partner_name: string
+          permissions?: Json | null
+          rate_limit?: number | null
+          updated_at?: string
+        }
+        Update: {
+          allowed_origins?: string[] | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash?: string
+          partner_name?: string
+          permissions?: Json | null
+          rate_limit?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      api_usage_logs: {
+        Row: {
+          action: string
+          api_key_id: string | null
+          created_at: string
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          resource_id: string | null
+        }
+        Insert: {
+          action: string
+          api_key_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          resource_id?: string | null
+        }
+        Update: {
+          action?: string
+          api_key_id?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          resource_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_logs_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       authority_contacts: {
         Row: {
           address: string | null
@@ -761,6 +838,7 @@ export type Database = {
           created_at: string
           device_info: Json | null
           ended_at: string | null
+          escalated: boolean | null
           id: string
           initial_lat: number
           initial_lng: number
@@ -769,6 +847,8 @@ export type Database = {
           last_location_at: string
           started_at: string
           status: string
+          threat_score: number | null
+          trigger_source: string | null
           updated_at: string
           user_id: string
         }
@@ -777,6 +857,7 @@ export type Database = {
           created_at?: string
           device_info?: Json | null
           ended_at?: string | null
+          escalated?: boolean | null
           id?: string
           initial_lat: number
           initial_lng: number
@@ -785,6 +866,8 @@ export type Database = {
           last_location_at?: string
           started_at?: string
           status?: string
+          threat_score?: number | null
+          trigger_source?: string | null
           updated_at?: string
           user_id: string
         }
@@ -793,6 +876,7 @@ export type Database = {
           created_at?: string
           device_info?: Json | null
           ended_at?: string | null
+          escalated?: boolean | null
           id?: string
           initial_lat?: number
           initial_lng?: number
@@ -801,6 +885,8 @@ export type Database = {
           last_location_at?: string
           started_at?: string
           status?: string
+          threat_score?: number | null
+          trigger_source?: string | null
           updated_at?: string
           user_id?: string
         }
