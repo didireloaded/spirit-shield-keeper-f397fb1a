@@ -11,6 +11,9 @@ interface PanicSession {
   initial_lng: number;
   last_known_lat: number;
   last_known_lng: number;
+  trigger_source?: "manual" | "crash" | "ai" | "api";
+  threat_score?: number;
+  escalated?: boolean;
 }
 
 interface AudioChunk {
@@ -176,7 +179,10 @@ export const usePanicSession = () => {
   }, []);
 
   // Start panic session
-  const startPanic = useCallback(async () => {
+  const startPanic = useCallback(async (
+    triggerSource: "manual" | "crash" | "ai" | "api" = "manual",
+    threatScore?: number
+  ) => {
     if (!user) {
       setError("You must be logged in to trigger a panic alert");
       return null;
@@ -200,9 +206,13 @@ export const usePanicSession = () => {
     if (!position) return null;
 
     const { latitude, longitude } = position.coords;
-    const deviceInfo = getDeviceInfo();
+    const deviceInfo = {
+      ...getDeviceInfo(),
+      triggerSource,
+      threatScore: threatScore || 0,
+    };
 
-    console.log("[Panic] Starting panic session...");
+    console.log(`[Panic] Starting panic session (${triggerSource})...`);
 
     // Create session via edge function
     const { data, error: sessionError } = await supabase.functions.invoke("panic-session", {
@@ -211,6 +221,8 @@ export const usePanicSession = () => {
         initialLat: latitude,
         initialLng: longitude,
         deviceInfo,
+        triggerSource,
+        threatScore,
       },
     });
 
@@ -284,6 +296,9 @@ export const usePanicSession = () => {
       initial_lng: longitude,
       last_known_lat: latitude,
       last_known_lng: longitude,
+      trigger_source: triggerSource,
+      threat_score: threatScore || 0,
+      escalated: false,
     });
     setIsActive(true);
 
