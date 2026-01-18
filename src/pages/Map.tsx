@@ -381,20 +381,40 @@ const Map = () => {
     }
   };
 
-  return (
+    return (
     <div className="min-h-screen bg-background">
       {/* Map Container */}
       <div className="relative h-[calc(100vh-4rem)]">
         <MapboxMap
           className="absolute inset-0"
           showUserLocation={!ghostMode}
-          markers={markers}
-          alerts={alerts}
+          incidents={allAlerts.map(a => ({
+            ...a,
+            verified: false,
+            confidence_score: 50,
+          }))}
           routes={routes}
           watchers={watcherLocations}
           heatmapEnabled={heatmapEnabled}
           onMapClick={handleMapClick}
-          onMarkerClick={handleMarkerClick}
+          onMarkerClick={(incident) => {
+            const fullMarker = markers.find(m => m.id === incident.id);
+            if (fullMarker) {
+              handleMarkerClick(fullMarker);
+            } else {
+              // Handle alert click
+              setPreviewMarker({
+                id: incident.id,
+                latitude: incident.latitude,
+                longitude: incident.longitude,
+                type: incident.type,
+                description: incident.description || null,
+                user_id: '',
+                created_at: incident.created_at || new Date().toISOString(),
+                status: incident.status,
+              });
+            }
+          }}
         />
 
         {/* Top Bar */}
