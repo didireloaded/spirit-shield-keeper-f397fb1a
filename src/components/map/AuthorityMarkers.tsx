@@ -1,6 +1,7 @@
 /**
- * Authority responder markers for the map
- * Shows police, ambulance, and other responders with their status
+ * Authority Responder Layers for Mapbox
+ * Shows police, ambulance, and other responders with animated movement
+ * No mock data - uses real-time Supabase data only
  */
 
 import { useEffect, useRef } from "react";
@@ -24,7 +25,7 @@ interface AuthorityMarkersProps {
 }
 
 // Role to icon/color mapping
-const roleConfig = {
+const roleConfig: Record<string, { color: string; icon: string; label: string }> = {
   police: {
     color: "#3B82F6", // Blue
     icon: "🚔",
@@ -48,7 +49,7 @@ const roleConfig = {
 };
 
 // Status to style mapping
-const statusConfig = {
+const statusConfig: Record<string, { pulse: boolean; opacity: number; label: string }> = {
   en_route: {
     pulse: true,
     opacity: 1,
@@ -71,11 +72,11 @@ const statusConfig = {
   },
 };
 
-export const useAuthorityMarkers = ({
+export function useAuthorityMarkers({
   map,
   responders,
   mapLoaded,
-}: AuthorityMarkersProps) => {
+}: AuthorityMarkersProps) {
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
 
   useEffect(() => {
@@ -91,55 +92,70 @@ export const useAuthorityMarkers = ({
       }
     });
 
-    // Add/update markers
+    // Add/update markers with smooth animation
     responders.forEach((responder) => {
       const existing = markersRef.current.get(responder.id);
       const config = roleConfig[responder.role] || roleConfig.authority;
       const status = statusConfig[responder.status] || statusConfig.available;
 
       if (existing) {
-        // Update position
+        // Smooth position update (Mapbox handles interpolation)
         existing.setLngLat([responder.longitude, responder.latitude]);
       } else {
-        // Create new marker
+        // Create new marker element
         const el = document.createElement("div");
         el.className = "authority-marker";
         el.innerHTML = `
-          <div class="relative cursor-pointer transform hover:scale-110 transition-transform" style="opacity: ${status.opacity}">
+          <div class="relative cursor-pointer transform hover:scale-110 transition-transform duration-300" style="opacity: ${status.opacity}">
             ${
               status.pulse
-                ? `<div class="absolute -inset-2 rounded-full animate-pulse" style="background: ${config.color}30"></div>`
+                ? `<div class="absolute -inset-3 rounded-full animate-ping" style="background: ${config.color}40"></div>`
                 : ""
             }
-            <div class="w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2" 
-                 style="background: ${config.color}; border-color: white">
-              <span class="text-lg">${config.icon}</span>
+            <div class="w-11 h-11 rounded-full flex items-center justify-center shadow-xl border-3" 
+                 style="background: linear-gradient(135deg, ${config.color}, ${config.color}dd); border-color: white">
+              <span class="text-xl">${config.icon}</span>
             </div>
             ${
               responder.status === "en_route" && responder.eta_minutes
-                ? `<div class="absolute -bottom-1 -right-1 bg-white rounded-full px-1.5 py-0.5 text-xs font-bold shadow" 
+                ? `<div class="absolute -bottom-1 -right-1 bg-white rounded-full px-2 py-0.5 text-xs font-bold shadow-lg" 
                      style="color: ${config.color}">
                     ${responder.eta_minutes}m
                   </div>`
                 : ""
             }
+            ${
+              responder.status === "on_scene"
+                ? `<div class="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
+                     <span class="text-white text-[8px]">✓</span>
+                   </div>`
+                : ""
+            }
           </div>
         `;
 
-        // Create popup
+        // Create popup with responder info
         const popup = new mapboxgl.Popup({
-          offset: 25,
+          offset: 30,
           closeButton: false,
+          className: "responder-popup",
         }).setHTML(`
-          <div class="p-3 text-sm">
-            <div class="flex items-center gap-2 mb-1">
-              <span>${config.icon}</span>
+          <div class="p-3 text-sm min-w-[160px]">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-lg">${config.icon}</span>
               <strong style="color: ${config.color}">${config.label}</strong>
             </div>
-            <p class="text-gray-600 text-xs">
-              Status: ${status.label}
-              ${responder.eta_minutes ? `• ETA: ${responder.eta_minutes} min` : ""}
-            </p>
+            <div class="space-y-1 text-xs text-gray-600">
+              <p class="flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full" style="background: ${
+                  responder.status === "on_scene" ? "#22c55e" : 
+                  responder.status === "en_route" ? "#f59e0b" : "#9ca3af"
+                }"></span>
+                ${status.label}
+              </p>
+              ${responder.eta_minutes ? `<p>ETA: ${responder.eta_minutes} min</p>` : ""}
+              ${responder.name ? `<p class="text-gray-400">${responder.name}</p>` : ""}
+            </div>
           </div>
         `);
 
@@ -152,7 +168,6 @@ export const useAuthorityMarkers = ({
       }
     });
 
-    // Cleanup on unmount
     return () => {
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current.clear();
@@ -160,6 +175,6 @@ export const useAuthorityMarkers = ({
   }, [map, mapLoaded, responders]);
 
   return markersRef.current;
-};
+}
 
 export default useAuthorityMarkers;
