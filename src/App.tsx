@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { EmergencyProvider } from "@/contexts/EmergencyContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { NetworkStatus } from "@/components/NetworkStatus";
 import Index from "./pages/Index";
@@ -24,8 +25,9 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <NetworkStatus />
+      <EmergencyProvider>
+        <TooltipProvider>
+          <NetworkStatus />
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -115,7 +117,8 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </TooltipProvider>
+        </TooltipProvider>
+      </EmergencyProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
