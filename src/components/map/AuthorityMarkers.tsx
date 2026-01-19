@@ -1,7 +1,7 @@
 /**
- * Authority Responder Layers for Mapbox
+ * Authority Responder Markers for Mapbox
  * Shows police, ambulance, and other responders with animated movement
- * No mock data - uses real-time Supabase data only
+ * Role-based icons, status indicators, and ETA badges
  */
 
 import { useEffect, useRef } from "react";
@@ -24,7 +24,7 @@ interface AuthorityMarkersProps {
   mapLoaded: boolean;
 }
 
-// Role to icon/color mapping
+// Role configuration with colors and icons
 const roleConfig: Record<string, { color: string; icon: string; label: string }> = {
   police: {
     color: "#3B82F6", // Blue
@@ -48,7 +48,7 @@ const roleConfig: Record<string, { color: string; icon: string; label: string }>
   },
 };
 
-// Status to style mapping
+// Status configuration for visual feedback
 const statusConfig: Record<string, { pulse: boolean; opacity: number; label: string }> = {
   en_route: {
     pulse: true,
@@ -84,7 +84,7 @@ export function useAuthorityMarkers({
 
     const currentIds = new Set(responders.map((r) => r.id));
 
-    // Remove old markers
+    // Remove stale markers
     markersRef.current.forEach((marker, id) => {
       if (!currentIds.has(id)) {
         marker.remove();
@@ -99,21 +99,23 @@ export function useAuthorityMarkers({
       const status = statusConfig[responder.status] || statusConfig.available;
 
       if (existing) {
-        // Smooth position update (Mapbox handles interpolation)
+        // Smooth position update
         existing.setLngLat([responder.longitude, responder.latitude]);
       } else {
         // Create new marker element
         const el = document.createElement("div");
         el.className = "authority-marker";
+        el.style.opacity = String(status.opacity);
+        
         el.innerHTML = `
-          <div class="relative cursor-pointer transform hover:scale-110 transition-transform duration-300" style="opacity: ${status.opacity}">
+          <div class="relative cursor-pointer transform hover:scale-110 transition-transform duration-300">
             ${
               status.pulse
                 ? `<div class="absolute -inset-3 rounded-full animate-ping" style="background: ${config.color}40"></div>`
                 : ""
             }
-            <div class="w-11 h-11 rounded-full flex items-center justify-center shadow-xl border-3" 
-                 style="background: linear-gradient(135deg, ${config.color}, ${config.color}dd); border-color: white">
+            <div class="w-11 h-11 rounded-full flex items-center justify-center shadow-xl" 
+                 style="background: linear-gradient(135deg, ${config.color}, ${config.color}dd); border: 3px solid white">
               <span class="text-xl">${config.icon}</span>
             </div>
             ${
@@ -148,8 +150,11 @@ export function useAuthorityMarkers({
             <div class="space-y-1 text-xs text-gray-600">
               <p class="flex items-center gap-1">
                 <span class="w-2 h-2 rounded-full" style="background: ${
-                  responder.status === "on_scene" ? "#22c55e" : 
-                  responder.status === "en_route" ? "#f59e0b" : "#9ca3af"
+                  responder.status === "on_scene"
+                    ? "#22c55e"
+                    : responder.status === "en_route"
+                    ? "#f59e0b"
+                    : "#9ca3af"
                 }"></span>
                 ${status.label}
               </p>

@@ -1,7 +1,7 @@
 /**
  * Incident Layers for Mapbox
- * Handles all incident markers with proper styling based on type, status, and verification
- * No mock data - uses real-time Supabase data only
+ * Production-ready incident markers with proper styling
+ * Pulsing animations, clustering, verification badges
  */
 
 import { useEffect } from "react";
@@ -27,40 +27,46 @@ interface IncidentLayersProps {
 }
 
 /**
- * Convert incidents to GeoJSON features
+ * Convert incidents to GeoJSON with all necessary properties
  */
 function incidentsToGeoJSON(incidents: Incident[]): GeoJSON.FeatureCollection {
+  const now = Date.now();
+  
   return {
     type: "FeatureCollection",
-    features: incidents.map((incident) => {
-      const createdAt = incident.created_at ? new Date(incident.created_at) : new Date();
-      const isRecent = Date.now() - createdAt.getTime() < 30 * 60 * 1000; // 30 min
-      
-      return {
-        type: "Feature" as const,
-        id: incident.id,
-        geometry: {
-          type: "Point" as const,
-          coordinates: [incident.longitude, incident.latitude],
-        },
-        properties: {
+    features: incidents
+      .filter((i) => {
+        // Filter resolved incidents older than 24h
+        if (i.status === "resolved") return false;
+        if (!i.created_at) return true;
+        return now - new Date(i.created_at).getTime() < 24 * 60 * 60 * 1000;
+      })
+      .map((incident) => {
+        const createdAt = incident.created_at ? new Date(incident.created_at) : new Date();
+        const isRecent = now - createdAt.getTime() < 30 * 60 * 1000; // 30 min
+
+        return {
+          type: "Feature" as const,
           id: incident.id,
-          type: incident.type || "other",
-          status: incident.status || "active",
-          verified: incident.verified || false,
-          confidence: incident.confidence_score || 50,
-          isRecent,
-          description: incident.description,
-          created_at: incident.created_at,
-        },
-      };
-    }),
+          geometry: {
+            type: "Point" as const,
+            coordinates: [incident.longitude, incident.latitude],
+          },
+          properties: {
+            id: incident.id,
+            type: incident.type || "other",
+            status: incident.status || "active",
+            verified: incident.verified || false,
+            confidence: incident.confidence_score || 50,
+            isRecent,
+            description: incident.description,
+            created_at: incident.created_at,
+          },
+        };
+      }),
   };
 }
 
-/**
- * Add incident source and layers to map
- */
 export function useIncidentLayers({
   map,
   incidents,
@@ -82,7 +88,7 @@ export function useIncidentLayers({
         clusterMaxZoom: 14,
       });
 
-      // Cluster circles
+      // Cluster circles with red gradient
       map.addLayer({
         id: "incident-clusters",
         type: "circle",
@@ -96,7 +102,7 @@ export function useIncidentLayers({
             5,
             "#dc2626", // Darker red for medium
             10,
-            "#b91c1c", // Even darker for large
+            "#b91c1c", // Darkest for large
           ],
           "circle-radius": ["step", ["get", "point_count"], 20, 5, 25, 10, 30],
           "circle-opacity": 0.85,
@@ -121,7 +127,7 @@ export function useIncidentLayers({
         },
       });
 
-      // Pulse effect for recent/active incidents (rendered first, below main points)
+      // Pulse effect for recent/active incidents (outer glow)
       map.addLayer({
         id: "incident-pulse",
         type: "circle",
@@ -148,7 +154,7 @@ export function useIncidentLayers({
         },
       });
 
-      // Individual incident markers
+      // Individual incident markers (core dots)
       map.addLayer({
         id: "incident-points",
         type: "circle",
@@ -164,7 +170,7 @@ export function useIncidentLayers({
             12,
             10,
           ],
-          // Color based on type
+          // Color based on type and status
           "circle-color": [
             "case",
             ["==", ["get", "status"], "resolved"],
@@ -194,7 +200,7 @@ export function useIncidentLayers({
             0.5,
             0.9,
           ],
-          // Stroke for verified incidents
+          // Stroke for verified incidents (green shield border)
           "circle-stroke-width": [
             "case",
             ["==", ["get", "verified"], true],
@@ -212,7 +218,7 @@ export function useIncidentLayers({
         },
       });
 
-      // Click handler for clusters
+      // Click handler for clusters - zoom in
       map.on("click", "incident-clusters", (e) => {
         const features = map.queryRenderedFeatures(e.point, {
           layers: ["incident-clusters"],
@@ -236,7 +242,7 @@ export function useIncidentLayers({
         });
       });
 
-      // Click handler for individual points
+      // Click handler for individual points - select incident
       map.on("click", "incident-points", (e) => {
         if (!e.features?.length || !onSelect) return;
 
@@ -260,7 +266,7 @@ export function useIncidentLayers({
             longitude,
             type: props.type,
             status: props.status,
-            verified: props.verified,
+            verified: props.verified === true || props.verified === "true",
             confidence_score: props.confidence,
             description: props.description,
             created_at: props.created_at,
@@ -268,7 +274,7 @@ export function useIncidentLayers({
         }
       });
 
-      // Cursor changes
+      // Cursor changes for interactivity
       map.on("mouseenter", "incident-clusters", () => {
         map.getCanvas().style.cursor = "pointer";
       });

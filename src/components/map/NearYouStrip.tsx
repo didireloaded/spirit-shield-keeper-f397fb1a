@@ -1,3 +1,9 @@
+/**
+ * Near You Alert Strip
+ * Appears when user is within 500m of an active incident
+ * Shows urgency level, distance, and quick actions
+ */
+
 import { motion } from "framer-motion";
 import { AlertTriangle, X, MapPin, Clock, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -16,9 +22,11 @@ interface NearYouStripProps {
   onViewOnMap: () => void;
 }
 
+// Type labels for human-readable display
 const typeLabels: Record<string, string> = {
   panic: "Emergency Alert",
   amber: "Amber Alert",
+  crash: "Vehicle Crash",
   robbery: "Robbery Reported",
   assault: "Assault Reported",
   kidnapping: "Kidnapping Alert",
@@ -42,6 +50,7 @@ export function NearYouStrip({
       initial={{ opacity: 0, y: -20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -20, scale: 0.95 }}
+      transition={{ type: "spring", damping: 25, stiffness: 300 }}
       className={`mx-4 rounded-2xl shadow-2xl overflow-hidden ${
         isHighPriority
           ? "bg-destructive text-destructive-foreground shadow-panic"
@@ -100,9 +109,7 @@ export function NearYouStrip({
             <button
               onClick={onDismiss}
               className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${
-                isHighPriority
-                  ? "hover:bg-white/20"
-                  : "hover:bg-black/10"
+                isHighPriority ? "hover:bg-white/20" : "hover:bg-black/10"
               }`}
             >
               <X className="w-4 h-4" />
@@ -118,6 +125,7 @@ export function NearYouStrip({
                 : "bg-black/10 hover:bg-black/20"
             }`}
           >
+            <MapPin className="w-4 h-4" />
             View on Map
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -126,3 +134,5 @@ export function NearYouStrip({
     </motion.div>
   );
 }
+
+export default NearYouStrip;
