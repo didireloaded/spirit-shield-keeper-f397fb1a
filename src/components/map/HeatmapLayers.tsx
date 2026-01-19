@@ -1,7 +1,7 @@
 /**
  * Heatmap Layer for Mapbox
- * Visualizes incident density with toggleable visibility
- * No mock data - uses real-time incident data only
+ * Visualizes incident density with confidence-weighted intensity
+ * Toggleable visibility with smooth fade at high zoom
  */
 
 import { useEffect } from "react";
@@ -24,15 +24,17 @@ interface HeatmapLayersProps {
 }
 
 /**
- * Convert incidents to GeoJSON for heatmap
+ * Convert incidents to GeoJSON for heatmap with confidence weighting
  */
 function incidentsToHeatmapGeoJSON(incidents: Incident[]): GeoJSON.FeatureCollection {
-  // Filter to only include recent active incidents for heatmap
+  const now = Date.now();
+  
+  // Filter to only include recent active incidents
   const recentIncidents = incidents.filter((i) => {
     if (i.status === "resolved") return false;
     if (!i.created_at) return true;
     // Only show last 24 hours in heatmap
-    return Date.now() - new Date(i.created_at).getTime() < 24 * 60 * 60 * 1000;
+    return now - new Date(i.created_at).getTime() < 24 * 60 * 60 * 1000;
   });
 
   return {
@@ -69,7 +71,11 @@ export function useHeatmapLayers({
         data: incidentsToHeatmapGeoJSON([]),
       });
 
-      // Add heatmap layer (insert at bottom)
+      // Add heatmap layer (insert below clusters for proper stacking)
+      const firstSymbolLayer = map.getStyle()?.layers?.find(
+        (layer) => layer.type === "symbol"
+      )?.id;
+
       map.addLayer(
         {
           id: layerId,
@@ -77,7 +83,7 @@ export function useHeatmapLayers({
           source: sourceId,
           maxzoom: 15,
           paint: {
-            // Weight by confidence score
+            // Weight by confidence score (0-100)
             "heatmap-weight": [
               "interpolate",
               ["linear"],
@@ -87,7 +93,7 @@ export function useHeatmapLayers({
               100,
               1,
             ],
-            // Intensity based on zoom
+            // Intensity increases with zoom
             "heatmap-intensity": [
               "interpolate",
               ["linear"],
@@ -97,7 +103,7 @@ export function useHeatmapLayers({
               15,
               3,
             ],
-            // Color gradient - yellow to red
+            // Color gradient: transparent -> yellow -> orange -> red
             "heatmap-color": [
               "interpolate",
               ["linear"],
@@ -115,7 +121,7 @@ export function useHeatmapLayers({
               1,
               "rgba(200,0,0,0.9)",
             ],
-            // Radius based on zoom
+            // Radius increases with zoom for smooth visualization
             "heatmap-radius": [
               "interpolate",
               ["linear"],
@@ -125,7 +131,7 @@ export function useHeatmapLayers({
               15,
               30,
             ],
-            // Fade out at high zoom
+            // Fade out at high zoom to show individual markers
             "heatmap-opacity": [
               "interpolate",
               ["linear"],
@@ -137,7 +143,7 @@ export function useHeatmapLayers({
             ],
           },
         },
-        "incident-clusters" // Insert below clusters
+        firstSymbolLayer || "incident-clusters"
       );
     }
 

@@ -1,3 +1,8 @@
+/**
+ * Heatmap Toggle Button
+ * Toggles visibility of incident heatmap layer
+ */
+
 import { motion } from "framer-motion";
 import { Flame, Thermometer } from "lucide-react";
 
@@ -13,10 +18,10 @@ export function HeatmapToggle({ enabled, onToggle }: HeatmapToggleProps) {
       onClick={onToggle}
       className={`p-3 rounded-xl shadow-lg transition-all ${
         enabled
-          ? "bg-destructive text-destructive-foreground"
-          : "glass text-foreground"
+          ? "bg-destructive text-destructive-foreground shadow-panic"
+          : "glass text-foreground hover:bg-secondary/80"
       }`}
-      title={enabled ? "Hide heatmap" : "Show heatmap"}
+      title={enabled ? "Hide heatmap" : "Show danger zones"}
     >
       {enabled ? (
         <Flame className="w-5 h-5" />
@@ -26,3 +31,5 @@ export function HeatmapToggle({ enabled, onToggle }: HeatmapToggleProps) {
     </motion.button>
   );
 }
+
+export default HeatmapToggle;
