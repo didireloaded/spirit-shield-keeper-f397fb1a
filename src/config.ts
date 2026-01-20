@@ -1,10 +1,10 @@
 // Centralized configuration file
 
-// Environment variables
+// Environment variables - using Vite's import.meta.env
 export const config = {
-  SUPABASE_URL: process.env.REACT_APP_SUPABASE_URL ?? '',
-  SUPABASE_ANON_KEY: process.env.REACT_APP_SUPABASE_ANON_KEY ?? '',
-  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? '',
+  SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL ?? '',
+  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '',
+  SUPABASE_PROJECT_ID: import.meta.env.VITE_SUPABASE_PROJECT_ID ?? '',
 };
 
 // Feature flags
