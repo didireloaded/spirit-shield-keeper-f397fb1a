@@ -1,9 +1,16 @@
-import { config } from "@/config";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./types";
 
-const supabaseUrl = config.SUPABASE_URL;
-const supabaseAnonKey = config.SUPABASE_ANON_KEY;
-const supabaseServiceKey = config.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-const supabaseClient = createClient(supabaseUrl, supabaseAnonKey || supabaseServiceKey);
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn(
+    "[Supabase] Missing environment variables. Make sure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are set."
+  );
+}
 
-export default supabaseClient;
+export const supabase = createClient<Database>(
+  SUPABASE_URL || "",
+  SUPABASE_ANON_KEY || ""
+);
