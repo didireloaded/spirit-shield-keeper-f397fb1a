@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { EmergencyProvider } from "@/contexts/EmergencyContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { NetworkStatus } from "@/components/NetworkStatus";
+import { ErrorBoundary } from "@/core/providers/ErrorBoundary";
+import { TIME } from "@/core/config/constants";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Map from "./pages/Map";
@@ -20,10 +22,21 @@ import Watchers from "./pages/Watchers";
 import NotificationSettings from "./pages/NotificationSettings";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// Configure React Query with production-ready defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: TIME.STALE_MEDIUM_MS,
+      gcTime: TIME.STALE_LONG_MS,
+      refetchOnWindowFocus: false,
+      retry: 2,
+    },
+  },
+});
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <EmergencyProvider>
         <TooltipProvider>
@@ -121,6 +134,7 @@ const App = () => (
       </EmergencyProvider>
     </AuthProvider>
   </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
