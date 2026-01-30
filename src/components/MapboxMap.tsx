@@ -2,6 +2,9 @@
  * MapboxMap - Production-ready map component
  * Uses real-time Supabase data only - no mock data
  * Clean separation of concerns with layer hooks
+ * 
+ * CRITICAL: Map readiness is tracked via refs to prevent race conditions.
+ * All source/layer operations MUST check mapLoadedRef.current before executing.
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -83,11 +86,14 @@ export function MapboxMap({
   className = "",
 }: MapboxMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const mapLoadedRef = useRef(false);
   const userMarker = useRef<mapboxgl.Marker | null>(null);
   const destinationMarkers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const watcherMarkers = useRef<Map<string, mapboxgl.Marker>>(new Map());
-  const [mapLoaded, setMapLoaded] = useState(false);
+  
+  // State for React re-renders (triggers child hooks)
+  const [mapReady, setMapReady] = useState(false);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -108,16 +114,16 @@ export function MapboxMap({
     fetchToken();
   }, []);
 
-  // Initialize map
+  // Initialize map - runs once when token is available
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || map.current) return;
+    if (!mapContainer.current || !mapboxToken || mapRef.current) return;
 
     mapboxgl.accessToken = mapboxToken;
 
     // Default to Namibia (Windhoek)
     const defaultCenter: [number, number] = [17.0832, -22.5609];
 
-    map.current = new mapboxgl.Map({
+    const map = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/dark-v11",
       center: defaultCenter,
@@ -126,13 +132,15 @@ export function MapboxMap({
       bearing: -17,
     });
 
+    mapRef.current = map;
+
     // Add controls
-    map.current.addControl(
+    map.addControl(
       new mapboxgl.NavigationControl({ visualizePitch: true }),
       "top-right"
     );
 
-    map.current.addControl(
+    map.addControl(
       new mapboxgl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
@@ -141,18 +149,24 @@ export function MapboxMap({
       "bottom-right"
     );
 
-    map.current.on("load", () => {
-      setMapLoaded(true);
-      if (onMapLoad && map.current) {
-        onMapLoad(map.current);
+    // CRITICAL: Only set loaded AFTER map.on("load") fires
+    map.on("load", () => {
+      mapLoadedRef.current = true;
+      setMapReady(true);
+      
+      if (onMapLoad) {
+        onMapLoad(map);
       }
     });
 
     // Handle map click for adding pins
     if (onMapClick) {
-      map.current.on("click", (e) => {
+      map.on("click", (e) => {
+        // Guard: ensure map is ready
+        if (!mapLoadedRef.current) return;
+        
         // Don't trigger if clicking on a feature
-        const features = map.current?.queryRenderedFeatures(e.point, {
+        const features = map.queryRenderedFeatures(e.point, {
           layers: ["incident-clusters", "incident-points"],
         });
         if (features && features.length > 0) return;
@@ -161,33 +175,37 @@ export function MapboxMap({
       });
     }
 
+    // Cleanup on unmount
     return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
+      mapLoadedRef.current = false;
+      setMapReady(false);
+      
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
       }
     };
   }, [mapboxToken, onMapLoad, onMapClick]);
 
-  // Use layer hooks for clean separation
+  // Use layer hooks - they receive refs and will guard internally
   useIncidentLayers({
-    map: map.current,
+    mapRef,
+    mapLoadedRef,
     incidents,
-    mapLoaded,
     onSelect: onMarkerClick,
   });
 
   useHeatmapLayers({
-    map: map.current,
+    mapRef,
+    mapLoadedRef,
     incidents,
-    mapLoaded,
     visible: heatmapEnabled,
   });
 
   useAuthorityMarkers({
-    map: map.current,
+    mapRef,
+    mapLoadedRef,
     responders,
-    mapLoaded,
   });
 
   // Get user location
@@ -215,7 +233,7 @@ export function MapboxMap({
 
   // Update user marker
   useEffect(() => {
-    if (!map.current || !mapLoaded || !userLocation || !showUserLocation) return;
+    if (!mapRef.current || !mapLoadedRef.current || !userLocation || !showUserLocation) return;
 
     if (!userMarker.current) {
       const el = document.createElement("div");
@@ -229,10 +247,10 @@ export function MapboxMap({
 
       userMarker.current = new mapboxgl.Marker({ element: el })
         .setLngLat([userLocation.lng, userLocation.lat])
-        .addTo(map.current);
+        .addTo(mapRef.current);
 
       // Pan to user location on first load
-      map.current.flyTo({
+      mapRef.current.flyTo({
         center: [userLocation.lng, userLocation.lat],
         zoom: 14,
         duration: 1500,
@@ -240,11 +258,11 @@ export function MapboxMap({
     } else {
       userMarker.current.setLngLat([userLocation.lng, userLocation.lat]);
     }
-  }, [userLocation, mapLoaded, showUserLocation]);
+  }, [userLocation, mapReady, showUserLocation]);
 
   // Update watcher markers
   useEffect(() => {
-    if (!map.current || !mapLoaded) return;
+    if (!mapRef.current || !mapLoadedRef.current) return;
 
     const currentWatcherIds = new Set(watchers.map((w) => w.id));
 
@@ -309,16 +327,18 @@ export function MapboxMap({
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([watcher.longitude, watcher.latitude])
           .setPopup(popup)
-          .addTo(map.current!);
+          .addTo(mapRef.current!);
 
         watcherMarkers.current.set(watcher.id, marker);
       }
     });
-  }, [watchers, mapLoaded]);
+  }, [watchers, mapReady]);
 
   // Draw routes for Look After Me trips
   useEffect(() => {
-    if (!map.current || !mapLoaded || !mapboxToken) return;
+    if (!mapRef.current || !mapLoadedRef.current || !mapboxToken) return;
+
+    const map = mapRef.current;
 
     const drawRoutes = async () => {
       // Remove existing route layers and sources
@@ -327,14 +347,18 @@ export function MapboxMap({
         const layerId = `route-layer-${i}`;
         const outlineLayerId = `route-outline-${i}`;
 
-        if (map.current?.getLayer(layerId)) {
-          map.current.removeLayer(layerId);
-        }
-        if (map.current?.getLayer(outlineLayerId)) {
-          map.current.removeLayer(outlineLayerId);
-        }
-        if (map.current?.getSource(sourceId)) {
-          map.current.removeSource(sourceId);
+        try {
+          if (map.getLayer(layerId)) {
+            map.removeLayer(layerId);
+          }
+          if (map.getLayer(outlineLayerId)) {
+            map.removeLayer(outlineLayerId);
+          }
+          if (map.getSource(sourceId)) {
+            map.removeSource(sourceId);
+          }
+        } catch (e) {
+          // Layer/source might not exist, ignore
         }
       }
 
@@ -359,7 +383,10 @@ export function MapboxMap({
           if (data.routes && data.routes[0]) {
             const routeGeometry = data.routes[0].geometry;
 
-            map.current?.addSource(sourceId, {
+            // Guard before adding source
+            if (!mapLoadedRef.current) return;
+
+            map.addSource(sourceId, {
               type: "geojson",
               data: {
                 type: "Feature",
@@ -369,7 +396,7 @@ export function MapboxMap({
             });
 
             // Route outline
-            map.current?.addLayer({
+            map.addLayer({
               id: outlineLayerId,
               type: "line",
               source: sourceId,
@@ -385,7 +412,7 @@ export function MapboxMap({
             });
 
             // Route line
-            map.current?.addLayer({
+            map.addLayer({
               id: layerId,
               type: "line",
               source: sourceId,
@@ -425,17 +452,17 @@ export function MapboxMap({
             const destMarker = new mapboxgl.Marker({ element: destEl })
               .setLngLat([route.endLng, route.endLat])
               .setPopup(destPopup)
-              .addTo(map.current!);
+              .addTo(map);
 
             destinationMarkers.current.set(route.id, destMarker);
 
             // Fit bounds to show entire route (only if single route)
-            if (routes.length === 1 && map.current) {
+            if (routes.length === 1) {
               const bounds = new mapboxgl.LngLatBounds();
               bounds.extend([route.startLng, route.startLat]);
               bounds.extend([route.endLng, route.endLat]);
 
-              map.current.fitBounds(bounds, {
+              map.fitBounds(bounds, {
                 padding: { top: 100, bottom: 200, left: 50, right: 50 },
                 duration: 1000,
               });
@@ -448,12 +475,12 @@ export function MapboxMap({
     };
 
     drawRoutes();
-  }, [routes, mapLoaded, mapboxToken]);
+  }, [routes, mapReady, mapboxToken]);
 
   // Expose methods for external control
   const centerOnUser = useCallback(() => {
-    if (map.current && userLocation) {
-      map.current.flyTo({
+    if (mapRef.current && mapLoadedRef.current && userLocation) {
+      mapRef.current.flyTo({
         center: [userLocation.lng, userLocation.lat],
         zoom: 15,
         duration: 1000,
@@ -462,8 +489,8 @@ export function MapboxMap({
   }, [userLocation]);
 
   const flyTo = useCallback((lat: number, lng: number, zoom = 15) => {
-    if (map.current) {
-      map.current.flyTo({
+    if (mapRef.current && mapLoadedRef.current) {
+      mapRef.current.flyTo({
         center: [lng, lat],
         zoom,
         duration: 1000,

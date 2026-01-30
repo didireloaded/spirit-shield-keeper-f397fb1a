@@ -2,9 +2,11 @@
  * Authority Responder Markers for Mapbox
  * Shows police, ambulance, and other responders with animated movement
  * Role-based icons, status indicators, and ETA badges
+ * 
+ * CRITICAL: Uses refs for map readiness to prevent race conditions.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, MutableRefObject } from "react";
 import mapboxgl from "mapbox-gl";
 
 interface Responder {
@@ -19,9 +21,9 @@ interface Responder {
 }
 
 interface AuthorityMarkersProps {
-  map: mapboxgl.Map | null;
+  mapRef: MutableRefObject<mapboxgl.Map | null>;
+  mapLoadedRef: MutableRefObject<boolean>;
   responders: Responder[];
-  mapLoaded: boolean;
 }
 
 // Role configuration with colors and icons
@@ -73,15 +75,17 @@ const statusConfig: Record<string, { pulse: boolean; opacity: number; label: str
 };
 
 export function useAuthorityMarkers({
-  map,
+  mapRef,
+  mapLoadedRef,
   responders,
-  mapLoaded,
 }: AuthorityMarkersProps) {
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
 
   useEffect(() => {
-    if (!map || !mapLoaded) return;
+    // Guard: map must exist and be loaded
+    if (!mapRef.current || !mapLoadedRef.current) return;
 
+    const map = mapRef.current;
     const currentIds = new Set(responders.map((r) => r.id));
 
     // Remove stale markers
@@ -172,12 +176,15 @@ export function useAuthorityMarkers({
         markersRef.current.set(responder.id, marker);
       }
     });
+  }, [mapRef, mapLoadedRef, responders]);
 
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current.clear();
     };
-  }, [map, mapLoaded, responders]);
+  }, []);
 
   return markersRef.current;
 }

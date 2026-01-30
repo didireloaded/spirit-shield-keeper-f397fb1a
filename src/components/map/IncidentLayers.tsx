@@ -2,9 +2,12 @@
  * Incident Layers for Mapbox
  * Production-ready incident markers with proper styling
  * Pulsing animations, clustering, verification badges
+ * 
+ * CRITICAL: Uses refs for map readiness to prevent race conditions.
+ * All source/layer operations guard with mapLoadedRef.current.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, MutableRefObject } from "react";
 import mapboxgl from "mapbox-gl";
 
 interface Incident {
@@ -20,9 +23,9 @@ interface Incident {
 }
 
 interface IncidentLayersProps {
-  map: mapboxgl.Map | null;
+  mapRef: MutableRefObject<mapboxgl.Map | null>;
+  mapLoadedRef: MutableRefObject<boolean>;
   incidents: Incident[];
-  mapLoaded: boolean;
   onSelect?: (incident: Incident) => void;
 }
 
@@ -71,6 +74,7 @@ function incidentsToGeoJSON(incidents: Incident[]): GeoJSON.FeatureCollection {
 
 /**
  * Add all incident layers to the map
+ * Only call this AFTER map.on("load") has fired
  */
 function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) => void) {
   // Add source
@@ -92,11 +96,11 @@ function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) =>
       "circle-color": [
         "step",
         ["get", "point_count"],
-        "#ef4444", // Red for small clusters
+        "#ef4444",
         5,
-        "#dc2626", // Darker red for medium
+        "#dc2626",
         10,
-        "#b91c1c", // Darkest for large
+        "#b91c1c",
       ],
       "circle-radius": ["step", ["get", "point_count"], 20, 5, 25, 10, 30],
       "circle-opacity": 0.85,
@@ -121,7 +125,7 @@ function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) =>
     },
   });
 
-  // Pulse effect for recent/active incidents (outer glow)
+  // Pulse effect for recent/active incidents
   map.addLayer({
     id: "incident-pulse",
     type: "circle",
@@ -148,14 +152,13 @@ function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) =>
     },
   });
 
-  // Individual incident markers (core dots)
+  // Individual incident markers
   map.addLayer({
     id: "incident-points",
     type: "circle",
     source: SOURCE_ID,
     filter: ["!", ["has", "point_count"]],
     paint: {
-      // Size based on status and recency
       "circle-radius": [
         "case",
         ["==", ["get", "status"], "resolved"],
@@ -164,11 +167,10 @@ function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) =>
         12,
         10,
       ],
-      // Color based on type and status
       "circle-color": [
         "case",
         ["==", ["get", "status"], "resolved"],
-        "#22c55e", // Green for resolved
+        "#22c55e",
         ["==", ["get", "type"], "panic"],
         "#ef4444",
         ["==", ["get", "type"], "amber"],
@@ -185,16 +187,14 @@ function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) =>
         "#f59e0b",
         ["==", ["get", "type"], "suspicious"],
         "#8b5cf6",
-        "#6b7280", // default gray
+        "#6b7280",
       ],
-      // Opacity based on status
       "circle-opacity": [
         "case",
         ["==", ["get", "status"], "resolved"],
         0.5,
         0.9,
       ],
-      // Stroke for verified incidents (green shield border)
       "circle-stroke-width": [
         "case",
         ["==", ["get", "verified"], true],
@@ -204,7 +204,7 @@ function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) =>
       "circle-stroke-color": [
         "case",
         ["==", ["get", "verified"], true],
-        "#22c55e", // Green shield for verified
+        "#22c55e",
         ["==", ["get", "status"], "resolved"],
         "#6b7280",
         "#ffffff",
@@ -236,7 +236,7 @@ function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) =>
     });
   });
 
-  // Click handler for individual points - select incident
+  // Click handler for individual points
   map.on("click", "incident-points", (e) => {
     if (!e.features?.length || !onSelect) return;
 
@@ -247,7 +247,6 @@ function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) =>
     if (geometry.type === "Point" && props) {
       const [longitude, latitude] = geometry.coordinates;
 
-      // Ease camera to marker
       map.easeTo({
         center: [longitude, latitude],
         zoom: Math.max(map.getZoom(), 15),
@@ -268,7 +267,7 @@ function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) =>
     }
   });
 
-  // Cursor changes for interactivity
+  // Cursor changes
   map.on("mouseenter", "incident-clusters", () => {
     map.getCanvas().style.cursor = "pointer";
   });
@@ -284,57 +283,51 @@ function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) =>
 }
 
 export function useIncidentLayers({
-  map,
+  mapRef,
+  mapLoadedRef,
   incidents,
-  mapLoaded,
   onSelect,
 }: IncidentLayersProps) {
   const layersAddedRef = useRef(false);
-
+  const onSelectRef = useRef(onSelect);
+  
+  // Keep onSelect ref updated
   useEffect(() => {
-    if (!map || !mapLoaded) return;
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
 
-    const initializeLayers = () => {
-      // Prevent double initialization
-      if (layersAddedRef.current) return;
-      
-      // Check if style is loaded
-      if (!map.isStyleLoaded()) return;
-      
-      // Check if source already exists (from previous mount)
-      if (map.getSource(SOURCE_ID)) {
-        layersAddedRef.current = true;
-        return;
-      }
-
-      try {
-        addIncidentLayers(map, onSelect);
-        layersAddedRef.current = true;
-      } catch (error) {
-        console.error("[IncidentLayers] Failed to add layers:", error);
-      }
-    };
-
-    // If style is already loaded, initialize immediately
-    if (map.isStyleLoaded()) {
-      initializeLayers();
-    } else {
-      // Wait for style to load
-      map.once("style.load", initializeLayers);
+  // Initialize layers - runs once when map is ready
+  useEffect(() => {
+    // Guard: map must exist and be loaded
+    if (!mapRef.current || !mapLoadedRef.current) return;
+    
+    // Guard: don't add twice
+    if (layersAddedRef.current) return;
+    
+    const map = mapRef.current;
+    
+    // Guard: source might already exist from previous mount
+    if (map.getSource(SOURCE_ID)) {
+      layersAddedRef.current = true;
+      return;
     }
 
-    return () => {
-      // Don't remove layers on cleanup - let them persist
-      // They'll be reused on next mount
-    };
-  }, [map, mapLoaded, onSelect]);
+    try {
+      addIncidentLayers(map, (incident) => {
+        onSelectRef.current?.(incident);
+      });
+      layersAddedRef.current = true;
+    } catch (error) {
+      console.error("[IncidentLayers] Failed to add layers:", error);
+    }
+  }, [mapRef, mapLoadedRef]);
 
   // Update source data when incidents change
   useEffect(() => {
-    if (!map || !mapLoaded || !layersAddedRef.current) return;
+    // Guard: map must exist, be loaded, and layers must be added
+    if (!mapRef.current || !mapLoadedRef.current || !layersAddedRef.current) return;
 
-    // Wait for style if needed
-    if (!map.isStyleLoaded()) return;
+    const map = mapRef.current;
 
     try {
       const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource;
@@ -344,7 +337,14 @@ export function useIncidentLayers({
     } catch (error) {
       console.error("[IncidentLayers] Failed to update data:", error);
     }
-  }, [map, mapLoaded, incidents]);
+  }, [mapRef, mapLoadedRef, incidents]);
+
+  // Cleanup - mark as not added so next mount can re-add
+  useEffect(() => {
+    return () => {
+      layersAddedRef.current = false;
+    };
+  }, []);
 }
 
 export default useIncidentLayers;
