@@ -4,7 +4,7 @@
  * Pulsing animations, clustering, verification badges
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 
 interface Incident {
@@ -25,6 +25,8 @@ interface IncidentLayersProps {
   mapLoaded: boolean;
   onSelect?: (incident: Incident) => void;
 }
+
+const SOURCE_ID = "incidents";
 
 /**
  * Convert incidents to GeoJSON with all necessary properties
@@ -67,234 +69,282 @@ function incidentsToGeoJSON(incidents: Incident[]): GeoJSON.FeatureCollection {
   };
 }
 
+/**
+ * Add all incident layers to the map
+ */
+function addIncidentLayers(map: mapboxgl.Map, onSelect?: (incident: Incident) => void) {
+  // Add source
+  map.addSource(SOURCE_ID, {
+    type: "geojson",
+    data: incidentsToGeoJSON([]),
+    cluster: true,
+    clusterRadius: 50,
+    clusterMaxZoom: 14,
+  });
+
+  // Cluster circles with red gradient
+  map.addLayer({
+    id: "incident-clusters",
+    type: "circle",
+    source: SOURCE_ID,
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-color": [
+        "step",
+        ["get", "point_count"],
+        "#ef4444", // Red for small clusters
+        5,
+        "#dc2626", // Darker red for medium
+        10,
+        "#b91c1c", // Darkest for large
+      ],
+      "circle-radius": ["step", ["get", "point_count"], 20, 5, 25, 10, 30],
+      "circle-opacity": 0.85,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+
+  // Cluster count labels
+  map.addLayer({
+    id: "incident-cluster-count",
+    type: "symbol",
+    source: SOURCE_ID,
+    filter: ["has", "point_count"],
+    layout: {
+      "text-field": "{point_count_abbreviated}",
+      "text-size": 14,
+      "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"],
+    },
+    paint: {
+      "text-color": "#ffffff",
+    },
+  });
+
+  // Pulse effect for recent/active incidents (outer glow)
+  map.addLayer({
+    id: "incident-pulse",
+    type: "circle",
+    source: SOURCE_ID,
+    filter: [
+      "all",
+      ["!", ["has", "point_count"]],
+      ["==", ["get", "isRecent"], true],
+      ["!=", ["get", "status"], "resolved"],
+    ],
+    paint: {
+      "circle-radius": 18,
+      "circle-color": [
+        "case",
+        ["==", ["get", "type"], "panic"],
+        "#ef4444",
+        ["==", ["get", "type"], "amber"],
+        "#f59e0b",
+        ["==", ["get", "type"], "crash"],
+        "#f97316",
+        "#ef4444",
+      ],
+      "circle-opacity": 0.3,
+    },
+  });
+
+  // Individual incident markers (core dots)
+  map.addLayer({
+    id: "incident-points",
+    type: "circle",
+    source: SOURCE_ID,
+    filter: ["!", ["has", "point_count"]],
+    paint: {
+      // Size based on status and recency
+      "circle-radius": [
+        "case",
+        ["==", ["get", "status"], "resolved"],
+        6,
+        ["==", ["get", "isRecent"], true],
+        12,
+        10,
+      ],
+      // Color based on type and status
+      "circle-color": [
+        "case",
+        ["==", ["get", "status"], "resolved"],
+        "#22c55e", // Green for resolved
+        ["==", ["get", "type"], "panic"],
+        "#ef4444",
+        ["==", ["get", "type"], "amber"],
+        "#f59e0b",
+        ["==", ["get", "type"], "crash"],
+        "#f97316",
+        ["==", ["get", "type"], "robbery"],
+        "#ef4444",
+        ["==", ["get", "type"], "assault"],
+        "#dc2626",
+        ["==", ["get", "type"], "kidnapping"],
+        "#b91c1c",
+        ["==", ["get", "type"], "accident"],
+        "#f59e0b",
+        ["==", ["get", "type"], "suspicious"],
+        "#8b5cf6",
+        "#6b7280", // default gray
+      ],
+      // Opacity based on status
+      "circle-opacity": [
+        "case",
+        ["==", ["get", "status"], "resolved"],
+        0.5,
+        0.9,
+      ],
+      // Stroke for verified incidents (green shield border)
+      "circle-stroke-width": [
+        "case",
+        ["==", ["get", "verified"], true],
+        3,
+        2,
+      ],
+      "circle-stroke-color": [
+        "case",
+        ["==", ["get", "verified"], true],
+        "#22c55e", // Green shield for verified
+        ["==", ["get", "status"], "resolved"],
+        "#6b7280",
+        "#ffffff",
+      ],
+    },
+  });
+
+  // Click handler for clusters - zoom in
+  map.on("click", "incident-clusters", (e) => {
+    const features = map.queryRenderedFeatures(e.point, {
+      layers: ["incident-clusters"],
+    });
+    if (!features.length) return;
+
+    const clusterId = features[0].properties?.cluster_id;
+    const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource;
+
+    source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+      if (err) return;
+
+      const geometry = features[0].geometry;
+      if (geometry.type === "Point") {
+        map.easeTo({
+          center: geometry.coordinates as [number, number],
+          zoom: zoom || 14,
+          duration: 500,
+        });
+      }
+    });
+  });
+
+  // Click handler for individual points - select incident
+  map.on("click", "incident-points", (e) => {
+    if (!e.features?.length || !onSelect) return;
+
+    const feature = e.features[0];
+    const props = feature.properties;
+    const geometry = feature.geometry;
+
+    if (geometry.type === "Point" && props) {
+      const [longitude, latitude] = geometry.coordinates;
+
+      // Ease camera to marker
+      map.easeTo({
+        center: [longitude, latitude],
+        zoom: Math.max(map.getZoom(), 15),
+        duration: 500,
+      });
+
+      onSelect({
+        id: props.id,
+        latitude,
+        longitude,
+        type: props.type,
+        status: props.status,
+        verified: props.verified === true || props.verified === "true",
+        confidence_score: props.confidence,
+        description: props.description,
+        created_at: props.created_at,
+      });
+    }
+  });
+
+  // Cursor changes for interactivity
+  map.on("mouseenter", "incident-clusters", () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+  map.on("mouseleave", "incident-clusters", () => {
+    map.getCanvas().style.cursor = "";
+  });
+  map.on("mouseenter", "incident-points", () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+  map.on("mouseleave", "incident-points", () => {
+    map.getCanvas().style.cursor = "";
+  });
+}
+
 export function useIncidentLayers({
   map,
   incidents,
   mapLoaded,
   onSelect,
 }: IncidentLayersProps) {
+  const layersAddedRef = useRef(false);
+
   useEffect(() => {
     if (!map || !mapLoaded) return;
 
-    const sourceId = "incidents";
+    const initializeLayers = () => {
+      // Prevent double initialization
+      if (layersAddedRef.current) return;
+      
+      // Check if style is loaded
+      if (!map.isStyleLoaded()) return;
+      
+      // Check if source already exists (from previous mount)
+      if (map.getSource(SOURCE_ID)) {
+        layersAddedRef.current = true;
+        return;
+      }
 
-    // Add source if not exists
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, {
-        type: "geojson",
-        data: incidentsToGeoJSON([]),
-        cluster: true,
-        clusterRadius: 50,
-        clusterMaxZoom: 14,
-      });
+      try {
+        addIncidentLayers(map, onSelect);
+        layersAddedRef.current = true;
+      } catch (error) {
+        console.error("[IncidentLayers] Failed to add layers:", error);
+      }
+    };
 
-      // Cluster circles with red gradient
-      map.addLayer({
-        id: "incident-clusters",
-        type: "circle",
-        source: sourceId,
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": [
-            "step",
-            ["get", "point_count"],
-            "#ef4444", // Red for small clusters
-            5,
-            "#dc2626", // Darker red for medium
-            10,
-            "#b91c1c", // Darkest for large
-          ],
-          "circle-radius": ["step", ["get", "point_count"], 20, 5, 25, 10, 30],
-          "circle-opacity": 0.85,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
-
-      // Cluster count labels
-      map.addLayer({
-        id: "incident-cluster-count",
-        type: "symbol",
-        source: sourceId,
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": "{point_count_abbreviated}",
-          "text-size": 14,
-          "text-font": ["DIN Pro Medium", "Arial Unicode MS Bold"],
-        },
-        paint: {
-          "text-color": "#ffffff",
-        },
-      });
-
-      // Pulse effect for recent/active incidents (outer glow)
-      map.addLayer({
-        id: "incident-pulse",
-        type: "circle",
-        source: sourceId,
-        filter: [
-          "all",
-          ["!", ["has", "point_count"]],
-          ["==", ["get", "isRecent"], true],
-          ["!=", ["get", "status"], "resolved"],
-        ],
-        paint: {
-          "circle-radius": 18,
-          "circle-color": [
-            "case",
-            ["==", ["get", "type"], "panic"],
-            "#ef4444",
-            ["==", ["get", "type"], "amber"],
-            "#f59e0b",
-            ["==", ["get", "type"], "crash"],
-            "#f97316",
-            "#ef4444",
-          ],
-          "circle-opacity": 0.3,
-        },
-      });
-
-      // Individual incident markers (core dots)
-      map.addLayer({
-        id: "incident-points",
-        type: "circle",
-        source: sourceId,
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          // Size based on status and recency
-          "circle-radius": [
-            "case",
-            ["==", ["get", "status"], "resolved"],
-            6,
-            ["==", ["get", "isRecent"], true],
-            12,
-            10,
-          ],
-          // Color based on type and status
-          "circle-color": [
-            "case",
-            ["==", ["get", "status"], "resolved"],
-            "#22c55e", // Green for resolved
-            ["==", ["get", "type"], "panic"],
-            "#ef4444",
-            ["==", ["get", "type"], "amber"],
-            "#f59e0b",
-            ["==", ["get", "type"], "crash"],
-            "#f97316",
-            ["==", ["get", "type"], "robbery"],
-            "#ef4444",
-            ["==", ["get", "type"], "assault"],
-            "#dc2626",
-            ["==", ["get", "type"], "kidnapping"],
-            "#b91c1c",
-            ["==", ["get", "type"], "accident"],
-            "#f59e0b",
-            ["==", ["get", "type"], "suspicious"],
-            "#8b5cf6",
-            "#6b7280", // default gray
-          ],
-          // Opacity based on status
-          "circle-opacity": [
-            "case",
-            ["==", ["get", "status"], "resolved"],
-            0.5,
-            0.9,
-          ],
-          // Stroke for verified incidents (green shield border)
-          "circle-stroke-width": [
-            "case",
-            ["==", ["get", "verified"], true],
-            3,
-            2,
-          ],
-          "circle-stroke-color": [
-            "case",
-            ["==", ["get", "verified"], true],
-            "#22c55e", // Green shield for verified
-            ["==", ["get", "status"], "resolved"],
-            "#6b7280",
-            "#ffffff",
-          ],
-        },
-      });
-
-      // Click handler for clusters - zoom in
-      map.on("click", "incident-clusters", (e) => {
-        const features = map.queryRenderedFeatures(e.point, {
-          layers: ["incident-clusters"],
-        });
-        if (!features.length) return;
-
-        const clusterId = features[0].properties?.cluster_id;
-        const source = map.getSource(sourceId) as mapboxgl.GeoJSONSource;
-
-        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-          if (err) return;
-
-          const geometry = features[0].geometry;
-          if (geometry.type === "Point") {
-            map.easeTo({
-              center: geometry.coordinates as [number, number],
-              zoom: zoom || 14,
-              duration: 500,
-            });
-          }
-        });
-      });
-
-      // Click handler for individual points - select incident
-      map.on("click", "incident-points", (e) => {
-        if (!e.features?.length || !onSelect) return;
-
-        const feature = e.features[0];
-        const props = feature.properties;
-        const geometry = feature.geometry;
-
-        if (geometry.type === "Point" && props) {
-          const [longitude, latitude] = geometry.coordinates;
-
-          // Ease camera to marker
-          map.easeTo({
-            center: [longitude, latitude],
-            zoom: Math.max(map.getZoom(), 15),
-            duration: 500,
-          });
-
-          onSelect({
-            id: props.id,
-            latitude,
-            longitude,
-            type: props.type,
-            status: props.status,
-            verified: props.verified === true || props.verified === "true",
-            confidence_score: props.confidence,
-            description: props.description,
-            created_at: props.created_at,
-          });
-        }
-      });
-
-      // Cursor changes for interactivity
-      map.on("mouseenter", "incident-clusters", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "incident-clusters", () => {
-        map.getCanvas().style.cursor = "";
-      });
-      map.on("mouseenter", "incident-points", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "incident-points", () => {
-        map.getCanvas().style.cursor = "";
-      });
+    // If style is already loaded, initialize immediately
+    if (map.isStyleLoaded()) {
+      initializeLayers();
+    } else {
+      // Wait for style to load
+      map.once("style.load", initializeLayers);
     }
 
-    // Update source data when incidents change
-    const source = map.getSource(sourceId) as mapboxgl.GeoJSONSource;
-    if (source) {
-      source.setData(incidentsToGeoJSON(incidents));
+    return () => {
+      // Don't remove layers on cleanup - let them persist
+      // They'll be reused on next mount
+    };
+  }, [map, mapLoaded, onSelect]);
+
+  // Update source data when incidents change
+  useEffect(() => {
+    if (!map || !mapLoaded || !layersAddedRef.current) return;
+
+    // Wait for style if needed
+    if (!map.isStyleLoaded()) return;
+
+    try {
+      const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource;
+      if (source) {
+        source.setData(incidentsToGeoJSON(incidents));
+      }
+    } catch (error) {
+      console.error("[IncidentLayers] Failed to update data:", error);
     }
-  }, [map, mapLoaded, incidents, onSelect]);
+  }, [map, mapLoaded, incidents]);
 }
 
 export default useIncidentLayers;
