@@ -25,15 +25,14 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify the token is valid
+    // Verify the token is valid by getting user
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (claimsError || !claimsData?.claims) {
+    if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Invalid auth token" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
