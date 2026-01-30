@@ -2,9 +2,11 @@
  * Heatmap Layer for Mapbox
  * Visualizes incident density with confidence-weighted intensity
  * Toggleable visibility with smooth fade at high zoom
+ * 
+ * CRITICAL: Uses refs for map readiness to prevent race conditions.
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef, MutableRefObject } from "react";
 import mapboxgl from "mapbox-gl";
 
 interface Incident {
@@ -17,11 +19,14 @@ interface Incident {
 }
 
 interface HeatmapLayersProps {
-  map: mapboxgl.Map | null;
+  mapRef: MutableRefObject<mapboxgl.Map | null>;
+  mapLoadedRef: MutableRefObject<boolean>;
   incidents: Incident[];
-  mapLoaded: boolean;
   visible: boolean;
 }
+
+const SOURCE_ID = "heatmap-source";
+const LAYER_ID = "incident-heatmap";
 
 /**
  * Convert incidents to GeoJSON for heatmap with confidence weighting
@@ -53,20 +58,31 @@ function incidentsToHeatmapGeoJSON(incidents: Incident[]): GeoJSON.FeatureCollec
 }
 
 export function useHeatmapLayers({
-  map,
+  mapRef,
+  mapLoadedRef,
   incidents,
-  mapLoaded,
   visible,
 }: HeatmapLayersProps) {
+  const layersAddedRef = useRef(false);
+
+  // Initialize layers
   useEffect(() => {
-    if (!map || !mapLoaded) return;
+    // Guard: map must exist and be loaded
+    if (!mapRef.current || !mapLoadedRef.current) return;
+    
+    // Guard: don't add twice
+    if (layersAddedRef.current) return;
+    
+    const map = mapRef.current;
+    
+    // Guard: source might already exist
+    if (map.getSource(SOURCE_ID)) {
+      layersAddedRef.current = true;
+      return;
+    }
 
-    const sourceId = "heatmap-source";
-    const layerId = "incident-heatmap";
-
-    // Add source if not exists
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, {
+    try {
+      map.addSource(SOURCE_ID, {
         type: "geojson",
         data: incidentsToHeatmapGeoJSON([]),
       });
@@ -78,9 +94,9 @@ export function useHeatmapLayers({
 
       map.addLayer(
         {
-          id: layerId,
+          id: LAYER_ID,
           type: "heatmap",
-          source: sourceId,
+          source: SOURCE_ID,
           maxzoom: 15,
           paint: {
             // Weight by confidence score (0-100)
@@ -145,19 +161,50 @@ export function useHeatmapLayers({
         },
         firstSymbolLayer || "incident-clusters"
       );
-    }
 
-    // Update source data
-    const source = map.getSource(sourceId) as mapboxgl.GeoJSONSource;
-    if (source) {
-      source.setData(incidentsToHeatmapGeoJSON(incidents));
+      layersAddedRef.current = true;
+    } catch (error) {
+      console.error("[HeatmapLayers] Failed to add layers:", error);
     }
+  }, [mapRef, mapLoadedRef]);
 
-    // Toggle visibility
-    if (map.getLayer(layerId)) {
-      map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+  // Update source data when incidents change
+  useEffect(() => {
+    if (!mapRef.current || !mapLoadedRef.current || !layersAddedRef.current) return;
+
+    const map = mapRef.current;
+
+    try {
+      const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource;
+      if (source) {
+        source.setData(incidentsToHeatmapGeoJSON(incidents));
+      }
+    } catch (error) {
+      console.error("[HeatmapLayers] Failed to update data:", error);
     }
-  }, [map, mapLoaded, incidents, visible]);
+  }, [mapRef, mapLoadedRef, incidents]);
+
+  // Toggle visibility
+  useEffect(() => {
+    if (!mapRef.current || !mapLoadedRef.current || !layersAddedRef.current) return;
+
+    const map = mapRef.current;
+
+    try {
+      if (map.getLayer(LAYER_ID)) {
+        map.setLayoutProperty(LAYER_ID, "visibility", visible ? "visible" : "none");
+      }
+    } catch (error) {
+      console.error("[HeatmapLayers] Failed to toggle visibility:", error);
+    }
+  }, [mapRef, mapLoadedRef, visible]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      layersAddedRef.current = false;
+    };
+  }, []);
 }
 
 export default useHeatmapLayers;
