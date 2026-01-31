@@ -1,4 +1,10 @@
-import { useState, useEffect } from "react";
+/**
+ * Profile Screen
+ * Per PDF specs: Avatar upload, bio, profile editing
+ * Single source of truth for user identity
+ */
+
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -13,7 +19,12 @@ import {
   Share2,
   AlertTriangle,
   Mail,
+  Camera,
+  Loader2,
+  MapPin,
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWatchers } from "@/hooks/useWatchers";
@@ -32,6 +43,16 @@ interface Profile {
   avatar_url: string | null;
 }
 
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 const Profile = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -39,13 +60,16 @@ const Profile = () => {
   const { alerts } = useAlerts();
   const { permission, requestPermission } = usePushNotifications();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [activeTab, setActiveTab] = useState<"alerts" | "messages" | "contacts" | "emergency">("alerts");
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [editForm, setEditForm] = useState({
     full_name: "",
     username: "",
     phone: "",
+    region: "",
   });
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -55,7 +79,9 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     if (!user) return;
-    const { data } = await supabase
+    setLoading(true);
+    
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
@@ -67,7 +93,48 @@ const Profile = () => {
         full_name: data.full_name || "",
         username: data.username || "",
         phone: data.phone || "",
+        region: data.region || "",
       });
+    }
+    setLoading(false);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploadingAvatar(true);
+    try {
+      // Upload to avatars bucket
+      const path = `${user.id}.jpg`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from("profile-photos")
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from("profile-photos")
+        .getPublicUrl(path);
+
+      // Update profile with new avatar URL (add cache buster)
+      const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+      
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: avatarUrl })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile((prev) => prev ? { ...prev, avatar_url: avatarUrl } : null);
+      toast.success("Profile photo updated!");
+    } catch (error) {
+      console.error("Avatar upload error:", error);
+      toast.error("Failed to upload photo");
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -80,6 +147,7 @@ const Profile = () => {
         full_name: editForm.full_name,
         username: editForm.username,
         phone: editForm.phone,
+        region: editForm.region,
       })
       .eq("id", user.id);
 
@@ -97,13 +165,21 @@ const Profile = () => {
     navigate("/auth");
   };
 
-  const myAlerts = alerts.filter(a => a.user_id === user?.id);
-  const acceptedWatchers = myWatchers.filter(w => w.status === "accepted");
+  const myAlerts = alerts.filter((a) => a.user_id === user?.id);
+  const acceptedWatchers = myWatchers.filter((w) => w.status === "accepted");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Hero Cover Section */}
-      <div className="relative h-48 bg-gradient-to-br from-zinc-800 to-zinc-900">
+      <div className="relative h-32 bg-gradient-to-br from-zinc-800 to-zinc-900">
         {/* Back Button */}
         <button 
           onClick={() => navigate(-1)}
@@ -121,21 +197,55 @@ const Profile = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
       </div>
 
-      <main className="max-w-lg mx-auto px-4 -mt-12 space-y-6 relative z-10">
-        {/* Profile Info */}
+      <main className="max-w-lg mx-auto px-4 -mt-16 space-y-6 relative z-10">
+        {/* Avatar Section - Per PDF: Large profile photo, clickable to edit */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center"
         >
-          <h1 className="text-2xl font-bold">
+          <div className="relative">
+            <Avatar className="w-28 h-28 border-4 border-background shadow-xl">
+              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">
+                {getInitials(profile?.full_name)}
+              </AvatarFallback>
+            </Avatar>
+            
+            {/* Avatar Upload Button */}
+            <input
+              type="file"
+              accept="image/*"
+              ref={avatarInputRef}
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="absolute bottom-0 right-0 p-2 bg-primary rounded-full shadow-lg hover:bg-primary/90 transition-colors"
+            >
+              {uploadingAvatar ? (
+                <Loader2 className="w-4 h-4 text-primary-foreground animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4 text-primary-foreground" />
+              )}
+            </button>
+          </div>
+
+          {/* Profile Info */}
+          <h1 className="text-2xl font-bold mt-4">
             {profile?.full_name || user?.email?.split("@")[0] || "User"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            SafeGuard Member {profile?.username && `• ${profile.username}`}
+            SafeGuard Member {profile?.username && `• @${profile.username}`}
           </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Keeping {profile?.region || "Namibia"} safe, one alert at a time. Part of the SafeGuard community dedicated to emergency response and community safety.
-          </p>
+          {profile?.region && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+              <MapPin className="w-3 h-3" />
+              {profile.region}
+            </p>
+          )}
         </motion.div>
 
         {/* Quick Action Buttons */}
@@ -143,32 +253,38 @@ const Profile = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="flex gap-3"
+          className="flex gap-2 justify-center flex-wrap"
         >
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-full hover:bg-secondary transition-colors"
+            className="rounded-full gap-2"
           >
             <Edit className="w-4 h-4" />
-            <span className="text-sm font-medium">Edit Profile</span>
-          </button>
-          <button
-            onClick={() => navigate("/chat")}
-            className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-full hover:bg-secondary transition-colors"
+            Edit Profile
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/messages")}
+            className="rounded-full gap-2"
           >
             <MessageCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">Messages</span>
-          </button>
-          <button
+            Messages
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => navigate("/authorities")}
-            className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-full hover:bg-secondary transition-colors"
+            className="rounded-full gap-2"
           >
             <Phone className="w-4 h-4" />
-            <span className="text-sm font-medium">Emergency</span>
-          </button>
+            Emergency
+          </Button>
         </motion.div>
 
-        {/* Stats Tabs */}
+        {/* Stats Grid */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -176,26 +292,18 @@ const Profile = () => {
           className="grid grid-cols-4 bg-card border border-border rounded-xl overflow-hidden"
         >
           {[
-            { key: "alerts", icon: Shield, label: "Alerts", value: myAlerts.length },
-            { key: "messages", icon: MessageCircle, label: "Messages", value: 0 },
-            { key: "contacts", icon: Users, label: "Contacts", value: acceptedWatchers.length },
-            { key: "emergency", icon: Phone, label: "Emergency", value: 0 },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.key;
+            { icon: Shield, label: "Alerts", value: myAlerts.length, color: "text-destructive" },
+            { icon: MessageCircle, label: "Messages", value: 0, color: "text-primary" },
+            { icon: Users, label: "Watchers", value: acceptedWatchers.length, color: "text-success" },
+            { icon: Phone, label: "SOS", value: myAlerts.filter((a) => a.type === "panic").length, color: "text-warning" },
+          ].map((stat) => {
+            const Icon = stat.icon;
             return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                className={`p-4 flex flex-col items-center gap-1 transition-colors ${
-                  isActive ? "bg-secondary" : "hover:bg-secondary/50"
-                }`}
-              >
-                <Icon className={`w-5 h-5 ${isActive ? "text-destructive" : "text-muted-foreground"}`} />
-                <span className={`text-xs ${isActive ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                  {tab.label}
-                </span>
-              </button>
+              <div key={stat.label} className="p-3 flex flex-col items-center gap-1 text-center">
+                <Icon className={`w-5 h-5 ${stat.color}`} />
+                <span className="text-lg font-bold">{stat.value}</span>
+                <span className="text-[10px] text-muted-foreground">{stat.label}</span>
+              </div>
             );
           })}
         </motion.div>
@@ -216,12 +324,9 @@ const Profile = () => {
                   <p className="text-xs text-muted-foreground">Get alerts for nearby emergencies</p>
                 </div>
               </div>
-              <button
-                onClick={requestPermission}
-                className="px-3 py-1.5 bg-warning text-warning-foreground text-xs font-medium rounded-lg"
-              >
+              <Button size="sm" onClick={requestPermission} className="bg-warning text-warning-foreground">
                 Enable
-              </button>
+              </Button>
             </div>
           </motion.div>
         )}
@@ -261,7 +366,12 @@ const Profile = () => {
             <div className="space-y-2">
               {acceptedWatchers.slice(0, 3).map((watcher) => (
                 <div key={watcher.id} className="flex items-center gap-3 text-sm">
-                  <Phone className="w-4 h-4 text-muted-foreground" />
+                  <Avatar className="w-6 h-6">
+                    <AvatarImage src={watcher.profile?.avatar_url || undefined} />
+                    <AvatarFallback className="text-xs bg-secondary">
+                      {getInitials(watcher.profile?.full_name)}
+                    </AvatarFallback>
+                  </Avatar>
                   <span>{watcher.profile?.full_name || watcher.profile?.phone || "Watcher"}</span>
                 </div>
               ))}
@@ -287,43 +397,21 @@ const Profile = () => {
           )}
         </motion.div>
 
-        {/* My Activity Summary */}
+        {/* Sign Out */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-card border border-border rounded-xl p-4 space-y-3"
         >
-          <h3 className="font-semibold">Activity Summary</h3>
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="p-3 bg-secondary rounded-lg">
-              <p className="text-xl font-bold text-destructive">{myAlerts.filter(a => a.type === "panic").length}</p>
-              <p className="text-xs text-muted-foreground">Panic Alerts</p>
-            </div>
-            <div className="p-3 bg-secondary rounded-lg">
-              <p className="text-xl font-bold text-warning">{myAlerts.filter(a => a.type === "amber").length}</p>
-              <p className="text-xs text-muted-foreground">Amber Alerts</p>
-            </div>
-            <div className="p-3 bg-secondary rounded-lg">
-              <p className="text-xl font-bold text-primary">{watchingMe.filter(w => w.status === "accepted").length}</p>
-              <p className="text-xs text-muted-foreground">Watching Me</p>
-            </div>
-          </div>
+          <Button
+            variant="outline"
+            onClick={handleSignOut}
+            className="w-full h-12 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+          >
+            <LogOut className="w-5 h-5 mr-2" />
+            Sign Out
+          </Button>
         </motion.div>
-
-        {/* Sign Out */}
-        <motion.button
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          onClick={handleSignOut}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          className="w-full p-4 bg-card border border-border rounded-xl flex items-center justify-center gap-2 text-destructive font-medium hover:bg-destructive/10 transition-colors"
-        >
-          <LogOut className="w-5 h-5" />
-          Sign Out
-        </motion.button>
       </main>
 
       {/* Edit Profile Modal */}
@@ -378,19 +466,31 @@ const Profile = () => {
               />
             </div>
 
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">Region</label>
+              <input
+                type="text"
+                value={editForm.region}
+                onChange={(e) => setEditForm({ ...editForm, region: e.target.value })}
+                placeholder="e.g., Windhoek"
+                className="w-full px-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
+                variant="outline"
                 onClick={() => setIsEditing(false)}
-                className="flex-1 py-3 bg-secondary hover:bg-secondary/80 rounded-xl font-medium transition-colors"
+                className="flex-1 h-12 rounded-xl"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleSaveProfile}
-                className="flex-1 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-medium transition-colors"
+                className="flex-1 h-12 rounded-xl"
               >
                 Save
-              </button>
+              </Button>
             </div>
           </motion.div>
         </motion.div>
