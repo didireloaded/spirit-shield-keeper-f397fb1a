@@ -359,7 +359,7 @@ export const AmberAlertDetailsModal = ({ alert, onClose, userLocation }: AmberAl
               <div>
                 <p className="text-sm font-medium">Reported By</p>
                 <p className="text-xs text-muted-foreground">
-                  {isOwner ? "You reported this alert" : "Community member"}
+                  {isOwner ? "You reported this alert" : "A SafeGuard user"}
                 </p>
               </div>
             </div>

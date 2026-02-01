@@ -288,7 +288,7 @@ export const AlertDetailsModal = ({ alert, onClose, userLocation }: AlertDetails
               <div>
                 <p className="text-sm font-medium">Reported By</p>
                 <p className="text-xs text-muted-foreground">
-                  {isOwner ? "You reported this alert" : "Community member"}
+                  {isOwner ? "You reported this alert" : "A SafeGuard user"}
                 </p>
               </div>
             </div>
