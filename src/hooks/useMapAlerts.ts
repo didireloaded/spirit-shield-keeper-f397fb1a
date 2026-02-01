@@ -4,7 +4,7 @@
  * Real-time updates via Supabase subscription
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { QUERY_LIMITS } from "@/core/config/constants";
 
@@ -27,10 +27,17 @@ interface UseMapAlertsOptions {
 }
 
 export function useMapAlerts(options: UseMapAlertsOptions = {}) {
-  const { enabled = true, statusFilter = ["active"] } = options;
+  const { enabled = true, statusFilter } = options;
   const [alerts, setAlerts] = useState<MapAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Stabilize statusFilter to prevent infinite re-renders
+  const stableStatusFilter = useMemo(
+    () => (statusFilter ?? ["active"]) as AlertStatus[],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(statusFilter)]
+  );
 
   const fetchAlerts = useCallback(async () => {
     if (!enabled) return;
@@ -42,7 +49,7 @@ export function useMapAlerts(options: UseMapAlertsOptions = {}) {
       const { data, error: fetchError } = await supabase
         .from("alerts")
         .select("id, latitude, longitude, type, status, created_at, description, user_id")
-        .in("status", statusFilter)
+        .in("status", stableStatusFilter)
         .order("created_at", { ascending: false })
         .limit(QUERY_LIMITS.DEFAULT);
 
@@ -56,7 +63,7 @@ export function useMapAlerts(options: UseMapAlertsOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [enabled, statusFilter]);
+  }, [enabled, stableStatusFilter]);
 
   // Initial fetch
   useEffect(() => {
