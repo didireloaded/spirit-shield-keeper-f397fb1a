@@ -195,7 +195,7 @@ const Index = () => {
                 <div className="flex items-center gap-2 mb-3">
                   <div className="text-3xl">{getAvatarEmoji(post.profile?.full_name)}</div>
                   <div className="flex-1">
-                    <p className="font-semibold">{post.profile?.full_name || "Anonymous"}</p>
+                    <p className="font-semibold">{post.profile?.full_name || "User"}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                       {post.location_name && ` • ${post.location_name}`}

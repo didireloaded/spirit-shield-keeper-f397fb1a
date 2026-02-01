@@ -351,45 +351,7 @@ const Authorities = () => {
           </>
         ) : (
           /* Official Alerts Tab - Per PDF Authority Feed specs */
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground text-center">
-              Official updates from verified authorities
-            </p>
-
-            {/* Example Authority Alerts - These would come from authority_posts table */}
-            <AuthorityCard
-              severity="info"
-              source={{ name: "City Council", isVerified: true }}
-              title="Scheduled Road Maintenance"
-              summary="Independence Avenue will undergo routine maintenance from 6 AM to 6 PM on weekdays."
-              location="Windhoek Central"
-              createdAt={new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()}
-            />
-
-            <AuthorityCard
-              severity="warning"
-              source={{ name: "Traffic Department", isVerified: true }}
-              title="Traffic Congestion Alert"
-              summary="Heavy traffic reported on Sam Nujoma Drive due to ongoing construction. Use alternative routes."
-              location="Katutura"
-              createdAt={new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()}
-            />
-
-            <AuthorityCard
-              severity="critical"
-              source={{ name: "Police HQ", isVerified: true }}
-              title="Area Safety Advisory"
-              summary="Increased patrol presence in the CBD area following reported incidents. Stay vigilant."
-              location="CBD"
-              createdAt={new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()}
-            />
-
-            <div className="text-center py-4">
-              <p className="text-xs text-muted-foreground">
-                Only verified authorities can post here
-              </p>
-            </div>
-          </div>
+          <OfficialAlertsTab />
         )}
       </main>
 
@@ -397,6 +359,74 @@ const Authorities = () => {
     </div>
   );
 };
+
+/**
+ * Official Alerts Tab - Fetches from authority_posts table
+ * No hardcoded data - follows Loading → Empty → Real Data pattern
+ */
+function OfficialAlertsTab() {
+  const [alerts, setAlerts] = useState<{
+    id: string;
+    source_name: string;
+    title: string;
+    summary: string;
+    severity: "info" | "warning" | "critical";
+    location: string | null;
+    created_at: string;
+  }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // NOTE: This will need an authority_posts table to be created
+    // For now, we show proper empty state
+    setLoading(false);
+    setAlerts([]);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (alerts.length === 0) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground text-center">
+          Official updates from verified authorities
+        </p>
+        <EmptyState type="no-alerts" compact className="mt-4" />
+        <p className="text-xs text-muted-foreground text-center">
+          Only verified authorities can post here
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground text-center">
+        Official updates from verified authorities
+      </p>
+      {alerts.map((alert) => (
+        <AuthorityCard
+          key={alert.id}
+          severity={alert.severity}
+          source={{ name: alert.source_name, isVerified: true }}
+          title={alert.title}
+          summary={alert.summary}
+          location={alert.location || undefined}
+          createdAt={alert.created_at}
+        />
+      ))}
+      <p className="text-xs text-muted-foreground text-center">
+        Only verified authorities can post here
+      </p>
+    </div>
+  );
+}
 
 // Authority Card Component per PDF specs
 function AuthorityCard({

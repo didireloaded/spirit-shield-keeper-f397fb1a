@@ -41,9 +41,11 @@ export function ProfileChip({
 }: ProfileChipProps) {
   const navigate = useNavigate();
 
+  // Show "Anonymous" for anonymous posts, real name if available, or "User" as last resort
+  // Never show "Community Member" - if no name, show nothing identifiable
   const displayName = isAnonymous 
     ? "Anonymous" 
-    : user?.full_name || "Community Member";
+    : user?.full_name || "User";
   const initials = isAnonymous ? "?" : getInitials(user?.full_name);
   const canNavigate = !isAnonymous && user?.id;
 
