@@ -1,7 +1,6 @@
 /**
- * Map Page - Refactored
- * Production-ready map screen with clean state management
- * Uses dedicated hooks for data fetching and UI components
+ * Map Page - CityVoice-style UI
+ * Clean map layout with reports bottom sheet
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -11,15 +10,16 @@ import MapboxMap from "@/components/MapboxMap";
 import IncidentDetailsModal from "@/components/IncidentDetailsModal";
 
 // Map-specific components
-import { MapStatusBar } from "@/components/map/MapStatusBar";
+import { MapHeader } from "@/components/map/MapHeader";
 import { MapControls } from "@/components/map/MapControls";
 import { MapLegend } from "@/components/map/MapLegend";
-import { MapBottomSheet, type SheetState } from "@/components/map/MapBottomSheet";
-import { NearYouStrip } from "@/components/map/NearYouStrip";
+import { ReportsBottomSheet } from "@/components/map/ReportsBottomSheet";
+import { ReportFab } from "@/components/map/ReportFab";
 import { HeatmapToggle } from "@/components/map/HeatmapToggle";
 import { ActiveTripBanner } from "@/components/map/ActiveTripBanner";
 import { IncidentReportModal } from "@/components/map/IncidentReportModal";
 import { CrosshairIndicator } from "@/components/map/CrosshairIndicator";
+import { NearYouStrip } from "@/components/map/NearYouStrip";
 
 // Hooks
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -43,7 +43,7 @@ const Map = () => {
   const [showLegend, setShowLegend] = useState(false);
   const [heatmapEnabled, setHeatmapEnabled] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [bottomSheetState, setBottomSheetState] = useState<SheetState>("HIDDEN");
+  const [locationName, setLocationName] = useState("Your Location");
 
   // Auth & Location
   const { user } = useAuth();
@@ -52,9 +52,9 @@ const Map = () => {
   // Map engine state
   const mapEngine = useMapEngineState();
 
-  // Data hooks - all fetching is now centralized
-  const { markers, refetch: refetchMarkers } = useMapMarkers({
-    bounds: null, // We fetch all markers, not bound-limited for now
+  // Data hooks
+  const { markers, loading: markersLoading, refetch: refetchMarkers } = useMapMarkers({
+    bounds: null,
     isIdle: mapEngine.isIdle,
     enabled: true,
   });
@@ -81,7 +81,7 @@ const Map = () => {
   // Notification hooks
   const { playAlertSound, triggerVibration } = useNotificationAlerts();
 
-  // Combine markers and alerts for nearby detection and map display
+  // Combine markers and alerts for display
   const allAlerts = [
     ...markers.map((m) => ({
       id: m.id,
@@ -110,13 +110,6 @@ const Map = () => {
     radiusMeters: 500,
   });
 
-  // Count live/recent incidents
-  const liveCount = allAlerts.filter((a) => {
-    if (a.status === "resolved") return false;
-    if (!a.created_at) return true;
-    return Date.now() - new Date(a.created_at).getTime() < 30 * 60 * 1000;
-  }).length;
-
   // Trigger audio/vibration for high-priority nearby alerts
   useEffect(() => {
     if (nearbyAlert && isHighPriority) {
@@ -125,16 +118,13 @@ const Map = () => {
     }
   }, [nearbyAlert?.id, isHighPriority, playAlertSound, triggerVibration]);
 
-  // Sync bottom sheet state with selection
+  // Update location name based on coordinates (reverse geocoding could be added)
   useEffect(() => {
-    if (selectionMode === "preview") {
-      setBottomSheetState("PARTIAL");
-    } else if (selectionMode === "detail") {
-      setBottomSheetState("HIDDEN");
-    } else {
-      setBottomSheetState("HIDDEN");
+    if (latitude && longitude) {
+      // Simple location label - could use reverse geocoding API
+      setLocationName("Your Location");
     }
-  }, [selectionMode]);
+  }, [latitude, longitude]);
 
   // Handlers
   const handleGhostToggle = useCallback(async () => {
@@ -156,7 +146,6 @@ const Map = () => {
       if (showAddPin) {
         setSelectedLocation({ lat, lng });
       } else {
-        // Clear selection when tapping empty map
         clearPreview();
       }
     },
@@ -165,12 +154,10 @@ const Map = () => {
 
   const handleMarkerClick = useCallback(
     (incident: { id: string; latitude: number; longitude: number; type: string; description?: string | null; status?: string; created_at?: string }) => {
-      // Find full marker data
       const fullMarker = markers.find((m) => m.id === incident.id);
       if (fullMarker) {
         showPreview(fullMarker);
       } else {
-        // It's an alert, create a temporary marker object
         showPreview({
           id: incident.id,
           latitude: incident.latitude,
@@ -185,6 +172,11 @@ const Map = () => {
     },
     [markers, showPreview]
   );
+
+  const handleReportClick = useCallback((report: MapMarker) => {
+    showPreview(report);
+    promoteToDetail();
+  }, [showPreview, promoteToDetail]);
 
   const handleAddIncidentToggle = useCallback(() => {
     if (!showAddPin) {
@@ -215,24 +207,14 @@ const Map = () => {
     }
   }, [nearbyAlert, markers, showPreview, dismissAlert]);
 
-  const handleBottomSheetClose = useCallback(() => {
-    setBottomSheetState("HIDDEN");
-    clearSelection();
-  }, [clearSelection]);
-
-  const handleViewDetails = useCallback(() => {
-    promoteToDetail();
-    setBottomSheetState("HIDDEN");
-  }, [promoteToDetail]);
-
   // Show banners only when no other overlays are active
   const showActiveTripBanner = hasActiveTrip && !showAddPin && !nearbyAlert && selectionMode === "none";
   const showNearbyStrip = !!nearbyAlert && !showAddPin && selectionMode === "none";
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Map Container */}
-      <div className="relative h-[calc(100vh-4rem)]">
+      {/* Map Container - Full height */}
+      <div className="relative h-screen w-full overflow-hidden">
         <MapboxMap
           className="absolute inset-0"
           showUserLocation={!ghostMode}
@@ -248,21 +230,13 @@ const Map = () => {
           onMarkerClick={handleMarkerClick}
         />
 
-        {/* Top Status Bar */}
-        <div className="absolute top-0 left-0 right-0 p-4 z-10">
-          <MapStatusBar
-            ghostMode={ghostMode}
-            onGhostToggle={handleGhostToggle}
-            latitude={latitude}
-            longitude={longitude}
-            liveCount={liveCount}
-          />
-        </div>
+        {/* Top Header */}
+        <MapHeader locationName={locationName} />
 
         {/* Near You Alert Strip */}
         <AnimatePresence>
           {showNearbyStrip && nearbyAlert && (
-            <div className="absolute top-20 left-0 right-0 z-20">
+            <div className="fixed top-20 left-4 right-4 z-20">
               <NearYouStrip
                 alert={nearbyAlert}
                 isHighPriority={isHighPriority}
@@ -277,23 +251,21 @@ const Map = () => {
         <ActiveTripBanner
           trip={activeTrip}
           visible={showActiveTripBanner}
-          className="absolute top-20 left-4 right-4 z-10"
+          className="fixed top-20 left-4 right-4 z-10"
         />
 
-        {/* Right Side Controls */}
-        <div className="absolute right-4 bottom-28 z-10">
-          <div className="flex flex-col gap-3">
-            <HeatmapToggle
-              enabled={heatmapEnabled}
-              onToggle={() => setHeatmapEnabled(!heatmapEnabled)}
-            />
-            <MapControls
-              onToggleLayers={() => setShowLegend(!showLegend)}
-              onAddIncident={handleAddIncidentToggle}
-              isAddingIncident={showAddPin}
-            />
-          </div>
-        </div>
+        {/* Left Side Controls */}
+        <MapControls
+          onRecenter={() => {}}
+          onSettings={() => setShowLegend(!showLegend)}
+          onToggleLayers={() => setHeatmapEnabled(!heatmapEnabled)}
+        />
+
+        {/* Report FAB - Right side */}
+        <ReportFab
+          isActive={showAddPin}
+          onClick={handleAddIncidentToggle}
+        />
 
         {/* Legend Panel */}
         <MapLegend
@@ -301,7 +273,7 @@ const Map = () => {
           onClose={() => setShowLegend(false)}
           watcherCount={watcherCount}
           hasActiveRoute={routes.length > 0}
-          className="absolute right-4 top-20 z-20"
+          className="fixed right-4 top-20 z-20"
         />
 
         {/* Crosshair when adding pin */}
@@ -315,14 +287,14 @@ const Map = () => {
           onSuccess={handleIncidentReportSuccess}
         />
 
-        {/* Bottom Sheet for marker preview */}
-        <MapBottomSheet
-          marker={selectedMarker}
+        {/* Reports Bottom Sheet */}
+        <ReportsBottomSheet
+          reports={markers}
           userLocation={latitude && longitude ? { lat: latitude, lng: longitude } : null}
-          state={bottomSheetState}
-          onStateChange={setBottomSheetState}
-          onClose={handleBottomSheetClose}
-          onViewDetails={handleViewDetails}
+          userId={user?.id}
+          loading={markersLoading}
+          onReportClick={handleReportClick}
+          radiusMiles={2}
         />
       </div>
 
