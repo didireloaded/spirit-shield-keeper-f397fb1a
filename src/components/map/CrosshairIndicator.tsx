@@ -1,6 +1,6 @@
 /**
  * Crosshair Indicator
- * Shows when user is in "add incident" mode
+ * Shows when user is in "add incident" mode - tap on map to place a pin
  */
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,8 +21,15 @@ export function CrosshairIndicator({ visible }: CrosshairIndicatorProps) {
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10"
         >
           <div className="relative">
-            <div className="absolute inset-0 -m-4 rounded-full bg-warning/20 animate-ping" />
-            <Crosshair className="w-8 h-8 text-warning drop-shadow-lg" />
+            {/* Subtle pulse ring - not aggressive ping */}
+            <motion.div
+              animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0.3, 0.6] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute inset-0 -m-4 rounded-full bg-warning/30"
+            />
+            <div className="w-12 h-12 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-warning">
+              <Crosshair className="w-6 h-6 text-warning" />
+            </div>
           </div>
         </motion.div>
       )}
