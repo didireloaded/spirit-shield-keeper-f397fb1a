@@ -1,26 +1,29 @@
 /**
- * Map Controls
- * Left-side floating buttons for settings and layers
+ * Map Controls (Left Side)
+ * Minimal floating buttons - only render working controls
  */
 
 import { motion } from "framer-motion";
-import { Settings, Layers, Crosshair } from "lucide-react";
+import { Crosshair, Layers } from "lucide-react";
 
 interface MapControlsProps {
   onRecenter?: () => void;
-  onSettings?: () => void;
   onToggleLayers?: () => void;
+  layersActive?: boolean;
   className?: string;
 }
 
 export function MapControls({
   onRecenter,
-  onSettings,
   onToggleLayers,
+  layersActive = false,
   className = "",
 }: MapControlsProps) {
+  // Only render if at least one control is provided
+  if (!onRecenter && !onToggleLayers) return null;
+
   return (
-    <div className={`fixed bottom-[280px] left-4 z-20 flex flex-col gap-3 ${className}`}>
+    <div className={`fixed bottom-44 left-4 z-20 flex flex-col gap-3 ${className}`}>
       {/* Recenter Button */}
       {onRecenter && (
         <motion.button
@@ -28,36 +31,16 @@ export function MapControls({
           onClick={onRecenter}
           className="
             w-11 h-11 rounded-full
-            bg-background/90 backdrop-blur-sm
+            bg-background/80 backdrop-blur-md
             border border-border/50
-            shadow-md
+            shadow-lg
             flex items-center justify-center
             text-muted-foreground hover:text-foreground
             transition-colors
           "
-          title="Center on my location"
+          aria-label="Center on my location"
         >
           <Crosshair className="w-5 h-5" />
-        </motion.button>
-      )}
-
-      {/* Settings Button */}
-      {onSettings && (
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={onSettings}
-          className="
-            w-11 h-11 rounded-full
-            bg-background/90 backdrop-blur-sm
-            border border-border/50
-            shadow-md
-            flex items-center justify-center
-            text-muted-foreground hover:text-foreground
-            transition-colors
-          "
-          title="Settings"
-        >
-          <Settings className="w-5 h-5" />
         </motion.button>
       )}
 
@@ -66,16 +49,16 @@ export function MapControls({
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={onToggleLayers}
-          className="
+          className={`
             w-11 h-11 rounded-full
-            bg-background/90 backdrop-blur-sm
+            bg-background/80 backdrop-blur-md
             border border-border/50
-            shadow-md
+            shadow-lg
             flex items-center justify-center
-            text-muted-foreground hover:text-foreground
             transition-colors
-          "
-          title="Map layers"
+            ${layersActive ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+          `}
+          aria-label="Toggle map layers"
         >
           <Layers className="w-5 h-5" />
         </motion.button>

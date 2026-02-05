@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIncidentLayers } from "./map/IncidentLayers";
 import { useHeatmapLayers } from "./map/HeatmapLayers";
 import { useAuthorityMarkers } from "./map/AuthorityMarkers";
+import { MapPin } from "lucide-react";
 
 interface RouteData {
   id: string;
@@ -95,6 +96,7 @@ export function MapboxMap({
   // State for React re-renders (triggers child hooks)
   const [mapReady, setMapReady] = useState(false);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Fetch Mapbox token from edge function
@@ -104,11 +106,30 @@ export function MapboxMap({
         const { data, error } = await supabase.functions.invoke("get-mapbox-token");
         if (!error && data?.token) {
           setMapboxToken(data.token);
+          setTokenError(null);
         } else {
           console.error("[Map] Failed to fetch Mapbox token:", error);
+          // Try fallback from environment
+          const fallback = import.meta.env.VITE_MAPBOX_TOKEN;
+          if (fallback) {
+            console.log("[Map] Using fallback token from env");
+            setMapboxToken(fallback);
+            setTokenError(null);
+          } else {
+            setTokenError("Map service unavailable. Please try again later.");
+          }
         }
       } catch (err) {
         console.error("[Map] Error fetching token:", err);
+        // Try fallback from environment
+        const fallback = import.meta.env.VITE_MAPBOX_TOKEN;
+        if (fallback) {
+          console.log("[Map] Using fallback token from env");
+          setMapboxToken(fallback);
+          setTokenError(null);
+        } else {
+          setTokenError("Unable to load map. Please check your connection.");
+        }
       }
     };
     fetchToken();
@@ -165,11 +186,20 @@ export function MapboxMap({
         // Guard: ensure map is ready
         if (!mapLoadedRef.current) return;
         
-        // Don't trigger if clicking on a feature
-        const features = map.queryRenderedFeatures(e.point, {
-          layers: ["incident-clusters", "incident-points"],
-        });
-        if (features && features.length > 0) return;
+        // Don't trigger if clicking on an incident layer (guard for layer existence)
+        try {
+          const layersToCheck = ["incident-clusters", "incident-points"].filter(
+            (layerId) => map.getLayer(layerId)
+          );
+          if (layersToCheck.length > 0) {
+            const features = map.queryRenderedFeatures(e.point, {
+              layers: layersToCheck,
+            });
+            if (features && features.length > 0) return;
+          }
+        } catch (err) {
+          // Layer might not exist yet, continue with click
+        }
 
         onMapClick(e.lngLat.lat, e.lngLat.lng);
       });
@@ -498,10 +528,33 @@ export function MapboxMap({
     }
   }, []);
 
-  // Loading state
-  if (!mapboxToken) {
+  // Error state - show user-friendly message
+  if (tokenError) {
     return (
-      <div className={`flex items-center justify-center bg-background ${className}`}>
+      <div className={`flex items-center justify-center bg-card ${className}`}>
+        <div className="flex flex-col items-center gap-4 text-center p-8">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+            <MapPin className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <div>
+            <h3 className="font-medium text-foreground mb-1">Map Unavailable</h3>
+            <p className="text-sm text-muted-foreground max-w-xs">{tokenError}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state - show spinner while fetching token
+  if (!mapboxToken && !tokenError) {
+    return (
+      <div className={`flex items-center justify-center bg-card ${className}`}>
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
           <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           <span className="text-sm">Loading map...</span>
