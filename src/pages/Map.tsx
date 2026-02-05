@@ -1,6 +1,6 @@
 /**
- * Map Page - CityVoice-style UI
- * Clean map layout with reports bottom sheet
+ * Map Page - Clean fullscreen map with floating controls
+ * Map is the hero, everything floats on top
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -10,13 +10,10 @@ import MapboxMap from "@/components/MapboxMap";
 import IncidentDetailsModal from "@/components/IncidentDetailsModal";
 
 // Map-specific components
-import { MapHeader } from "@/components/map/MapHeader";
+import { MapTopControls } from "@/components/map/MapTopControls";
 import { MapControls } from "@/components/map/MapControls";
-import { MapLegend } from "@/components/map/MapLegend";
 import { ReportsBottomSheet } from "@/components/map/ReportsBottomSheet";
 import { ReportFab } from "@/components/map/ReportFab";
-import { HeatmapToggle } from "@/components/map/HeatmapToggle";
-import { ActiveTripBanner } from "@/components/map/ActiveTripBanner";
 import { IncidentReportModal } from "@/components/map/IncidentReportModal";
 import { CrosshairIndicator } from "@/components/map/CrosshairIndicator";
 import { NearYouStrip } from "@/components/map/NearYouStrip";
@@ -29,8 +26,6 @@ import { useNotificationAlerts } from "@/hooks/useNotificationAlerts";
 import { useMapEngineState } from "@/hooks/useMapEngineState";
 import { useMapMarkers, type MapMarker } from "@/hooks/useMapMarkers";
 import { useMapAlerts } from "@/hooks/useMapAlerts";
-import { useActiveTrip } from "@/hooks/useActiveTrip";
-import { useWatcherLocations } from "@/hooks/useWatcherLocations";
 import { useSelectedMarker } from "@/hooks/useSelectedMarker";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -40,10 +35,9 @@ const Map = () => {
   // UI State
   const [ghostMode, setGhostMode] = useState(false);
   const [showAddPin, setShowAddPin] = useState(false);
-  const [showLegend, setShowLegend] = useState(false);
   const [heatmapEnabled, setHeatmapEnabled] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationName, setLocationName] = useState("Your Location");
+  const [mapRef, setMapRef] = useState<mapboxgl.Map | null>(null);
 
   // Auth & Location
   const { user } = useAuth();
@@ -61,21 +55,13 @@ const Map = () => {
 
   const { alerts } = useMapAlerts({ enabled: true });
 
-  const { activeTrip, routes, hasActiveTrip } = useActiveTrip({
-    userLat: latitude,
-    userLng: longitude,
-  });
-
-  const { locations: watcherLocations, count: watcherCount } = useWatcherLocations();
-
   // Selected marker state
   const {
     selectedMarker,
     selectionMode,
     showPreview,
-    promoteToDetail,
     clearSelection,
-    clearPreview,
+    promoteToDetail,
   } = useSelectedMarker();
 
   // Notification hooks
@@ -118,14 +104,6 @@ const Map = () => {
     }
   }, [nearbyAlert?.id, isHighPriority, playAlertSound, triggerVibration]);
 
-  // Update location name based on coordinates (reverse geocoding could be added)
-  useEffect(() => {
-    if (latitude && longitude) {
-      // Simple location label - could use reverse geocoding API
-      setLocationName("Your Location");
-    }
-  }, [latitude, longitude]);
-
   // Handlers
   const handleGhostToggle = useCallback(async () => {
     if (!user) return;
@@ -141,15 +119,18 @@ const Map = () => {
     toast.info(newGhostMode ? "Ghost mode enabled" : "Ghost mode disabled");
   }, [user, ghostMode]);
 
+  const handleMapLoad = useCallback((map: mapboxgl.Map) => {
+    setMapRef(map);
+    mapEngine.setIdle();
+  }, [mapEngine]);
+
   const handleMapClick = useCallback(
     (lat: number, lng: number) => {
       if (showAddPin) {
         setSelectedLocation({ lat, lng });
-      } else {
-        clearPreview();
       }
     },
-    [showAddPin, clearPreview]
+    [showAddPin]
   );
 
   const handleMarkerClick = useCallback(
@@ -207,13 +188,22 @@ const Map = () => {
     }
   }, [nearbyAlert, markers, showPreview, dismissAlert]);
 
-  // Show banners only when no other overlays are active
-  const showActiveTripBanner = hasActiveTrip && !showAddPin && !nearbyAlert && selectionMode === "none";
+  const handleRecenter = useCallback(() => {
+    if (mapRef && latitude && longitude) {
+      mapRef.flyTo({
+        center: [longitude, latitude],
+        zoom: 15,
+        duration: 1000,
+      });
+    }
+  }, [mapRef, latitude, longitude]);
+
+  // Show nearby strip only when not adding pin
   const showNearbyStrip = !!nearbyAlert && !showAddPin && selectionMode === "none";
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Map Container - Full height */}
+      {/* Fullscreen Map */}
       <div className="relative h-screen w-full overflow-hidden">
         <MapboxMap
           className="absolute inset-0"
@@ -223,20 +213,19 @@ const Map = () => {
             verified: false,
             confidence_score: 50,
           }))}
-          routes={routes}
-          watchers={watcherLocations}
           heatmapEnabled={heatmapEnabled}
+          onMapLoad={handleMapLoad}
           onMapClick={handleMapClick}
           onMarkerClick={handleMarkerClick}
         />
 
-        {/* Top Header */}
-        <MapHeader locationName={locationName} />
+        {/* Floating top controls (back button only) */}
+        <MapTopControls />
 
         {/* Near You Alert Strip */}
         <AnimatePresence>
           {showNearbyStrip && nearbyAlert && (
-            <div className="fixed top-20 left-4 right-4 z-20">
+            <div className="fixed top-20 left-4 right-4 z-30">
               <NearYouStrip
                 alert={nearbyAlert}
                 isHighPriority={isHighPriority}
@@ -247,36 +236,20 @@ const Map = () => {
           )}
         </AnimatePresence>
 
-        {/* Active Trip Banner */}
-        <ActiveTripBanner
-          trip={activeTrip}
-          visible={showActiveTripBanner}
-          className="fixed top-20 left-4 right-4 z-10"
-        />
-
-        {/* Left Side Controls */}
+        {/* Left floating controls */}
         <MapControls
-          onRecenter={() => {}}
-          onSettings={() => setShowLegend(!showLegend)}
+          onRecenter={handleRecenter}
           onToggleLayers={() => setHeatmapEnabled(!heatmapEnabled)}
+          layersActive={heatmapEnabled}
         />
 
-        {/* Report FAB - Right side */}
+        {/* Report FAB */}
         <ReportFab
           isActive={showAddPin}
           onClick={handleAddIncidentToggle}
         />
 
-        {/* Legend Panel */}
-        <MapLegend
-          visible={showLegend}
-          onClose={() => setShowLegend(false)}
-          watcherCount={watcherCount}
-          hasActiveRoute={routes.length > 0}
-          className="fixed right-4 top-20 z-20"
-        />
-
-        {/* Crosshair when adding pin */}
+        {/* Crosshair for pin placement */}
         <CrosshairIndicator visible={showAddPin && !selectedLocation} />
 
         {/* Incident Report Modal */}
@@ -287,7 +260,7 @@ const Map = () => {
           onSuccess={handleIncidentReportSuccess}
         />
 
-        {/* Reports Bottom Sheet */}
+        {/* Collapsible Bottom Sheet */}
         <ReportsBottomSheet
           reports={markers}
           userLocation={latitude && longitude ? { lat: latitude, lng: longitude } : null}
