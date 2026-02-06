@@ -1,9 +1,12 @@
 /**
  * Map Page - Clean fullscreen map with floating controls
  * Map is the hero, everything floats on top
+ * 
+ * CRITICAL: All callbacks passed to MapboxMap must be stable refs
+ * to prevent the map from re-initializing on every render.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
 import { BottomNav } from "@/components/BottomNav";
 import MapboxMap from "@/components/MapboxMap";
@@ -37,14 +40,16 @@ const Map = () => {
   const [showAddPin, setShowAddPin] = useState(false);
   const [heatmapEnabled, setHeatmapEnabled] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [mapRef, setMapRef] = useState<mapboxgl.Map | null>(null);
+  const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
 
   // Auth & Location
   const { user } = useAuth();
   const { latitude, longitude } = useGeolocation(!ghostMode);
 
-  // Map engine state
+  // Map engine state - use ref for setIdle to keep callback stable
   const mapEngine = useMapEngineState();
+  const setIdleRef = useRef(mapEngine.setIdle);
+  setIdleRef.current = mapEngine.setIdle;
 
   // Data hooks
   const { markers, loading: markersLoading, refetch: refetchMarkers } = useMapMarkers({
@@ -67,8 +72,8 @@ const Map = () => {
   // Notification hooks
   const { playAlertSound, triggerVibration } = useNotificationAlerts();
 
-  // Combine markers and alerts for display
-  const allAlerts = [
+  // CRITICAL: Memoize allAlerts to prevent MapboxMap re-renders
+  const allAlerts = useMemo(() => [
     ...markers.map((m) => ({
       id: m.id,
       latitude: m.latitude,
@@ -87,7 +92,17 @@ const Map = () => {
       created_at: a.created_at,
       description: a.description,
     })),
-  ];
+  ], [markers, alerts]);
+
+  // Memoize incidents prop for MapboxMap
+  const mapIncidents = useMemo(() =>
+    allAlerts.map((a) => ({
+      ...a,
+      verified: false,
+      confidence_score: 50,
+    })),
+    [allAlerts]
+  );
 
   const { nearbyAlert, isHighPriority, dismissAlert } = useNearbyAlerts({
     userLat: latitude,
@@ -104,7 +119,12 @@ const Map = () => {
     }
   }, [nearbyAlert?.id, isHighPriority, playAlertSound, triggerVibration]);
 
-  // Handlers
+  // CRITICAL: Stable callback - no dependency on mapEngine object
+  const handleMapLoad = useCallback((map: mapboxgl.Map) => {
+    mapInstanceRef.current = map;
+    setIdleRef.current();
+  }, []);
+
   const handleGhostToggle = useCallback(async () => {
     if (!user) return;
 
@@ -119,27 +139,32 @@ const Map = () => {
     toast.info(newGhostMode ? "Ghost mode enabled" : "Ghost mode disabled");
   }, [user, ghostMode]);
 
-  const handleMapLoad = useCallback((map: mapboxgl.Map) => {
-    setMapRef(map);
-    mapEngine.setIdle();
-  }, [mapEngine]);
+  // Use ref for showAddPin to keep handleMapClick stable
+  const showAddPinRef = useRef(showAddPin);
+  showAddPinRef.current = showAddPin;
 
   const handleMapClick = useCallback(
     (lat: number, lng: number) => {
-      if (showAddPin) {
+      if (showAddPinRef.current) {
         setSelectedLocation({ lat, lng });
       }
     },
-    [showAddPin]
+    []
   );
+
+  // Use ref for markers/showPreview to keep handleMarkerClick stable
+  const markersRef = useRef(markers);
+  markersRef.current = markers;
+  const showPreviewRef = useRef(showPreview);
+  showPreviewRef.current = showPreview;
 
   const handleMarkerClick = useCallback(
     (incident: { id: string; latitude: number; longitude: number; type: string; description?: string | null; status?: string; created_at?: string }) => {
-      const fullMarker = markers.find((m) => m.id === incident.id);
+      const fullMarker = markersRef.current.find((m) => m.id === incident.id);
       if (fullMarker) {
-        showPreview(fullMarker);
+        showPreviewRef.current(fullMarker);
       } else {
-        showPreview({
+        showPreviewRef.current({
           id: incident.id,
           latitude: incident.latitude,
           longitude: incident.longitude,
@@ -151,7 +176,7 @@ const Map = () => {
         } as MapMarker);
       }
     },
-    [markers, showPreview]
+    []
   );
 
   const handleReportClick = useCallback((report: MapMarker) => {
@@ -160,14 +185,16 @@ const Map = () => {
   }, [showPreview, promoteToDetail]);
 
   const handleAddIncidentToggle = useCallback(() => {
-    if (!showAddPin) {
-      setShowAddPin(true);
-      toast.info("Tap on the map to place your report", { duration: 3000 });
-    } else {
-      setShowAddPin(false);
-      setSelectedLocation(null);
-    }
-  }, [showAddPin]);
+    setShowAddPin(prev => {
+      if (!prev) {
+        toast.info("Tap on the map to place your report", { duration: 3000 });
+        return true;
+      } else {
+        setSelectedLocation(null);
+        return false;
+      }
+    });
+  }, []);
 
   const handleIncidentReportClose = useCallback(() => {
     setShowAddPin(false);
@@ -189,14 +216,14 @@ const Map = () => {
   }, [nearbyAlert, markers, showPreview, dismissAlert]);
 
   const handleRecenter = useCallback(() => {
-    if (mapRef && latitude && longitude) {
-      mapRef.flyTo({
+    if (mapInstanceRef.current && latitude && longitude) {
+      mapInstanceRef.current.flyTo({
         center: [longitude, latitude],
         zoom: 15,
         duration: 1000,
       });
     }
-  }, [mapRef, latitude, longitude]);
+  }, [latitude, longitude]);
 
   // Show nearby strip only when not adding pin
   const showNearbyStrip = !!nearbyAlert && !showAddPin && selectionMode === "none";
@@ -208,11 +235,7 @@ const Map = () => {
         <MapboxMap
           className="absolute inset-0"
           showUserLocation={!ghostMode}
-          incidents={allAlerts.map((a) => ({
-            ...a,
-            verified: false,
-            confidence_score: 50,
-          }))}
+          incidents={mapIncidents}
           heatmapEnabled={heatmapEnabled}
           onMapLoad={handleMapLoad}
           onMapClick={handleMapClick}
