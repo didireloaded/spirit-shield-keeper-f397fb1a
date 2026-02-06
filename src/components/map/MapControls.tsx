@@ -1,14 +1,17 @@
 /**
  * Map Controls (Left Side)
- * Minimal floating buttons - only render working controls
+ * Floating buttons - zoom, recenter, layers
  */
 
 import { motion } from "framer-motion";
-import { Crosshair, Layers } from "lucide-react";
+import { Crosshair, Layers, Plus, Minus } from "lucide-react";
+import { haptics } from "@/lib/haptics";
 
 interface MapControlsProps {
   onRecenter?: () => void;
   onToggleLayers?: () => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
   layersActive?: boolean;
   className?: string;
 }
@@ -16,52 +19,66 @@ interface MapControlsProps {
 export function MapControls({
   onRecenter,
   onToggleLayers,
+  onZoomIn,
+  onZoomOut,
   layersActive = false,
   className = "",
 }: MapControlsProps) {
-  // Only render if at least one control is provided
-  if (!onRecenter && !onToggleLayers) return null;
+  if (!onRecenter && !onToggleLayers && !onZoomIn && !onZoomOut) return null;
+
+  const ControlButton = ({
+    onClick,
+    label,
+    active = false,
+    children,
+  }: {
+    onClick?: () => void;
+    label: string;
+    active?: boolean;
+    children: React.ReactNode;
+  }) => (
+    <motion.button
+      whileTap={{ scale: 0.95 }}
+      onClick={() => {
+        haptics.light();
+        onClick?.();
+      }}
+      className={`
+        w-11 h-11 rounded-full
+        bg-background/80 backdrop-blur-md
+        border border-border/50
+        shadow-lg
+        flex items-center justify-center
+        transition-colors
+        ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+      `}
+      aria-label={label}
+    >
+      {children}
+    </motion.button>
+  );
 
   return (
-    <div className={`fixed bottom-44 left-4 z-20 flex flex-col gap-3 ${className}`}>
-      {/* Recenter Button */}
-      {onRecenter && (
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={onRecenter}
-          className="
-            w-11 h-11 rounded-full
-            bg-background/80 backdrop-blur-md
-            border border-border/50
-            shadow-lg
-            flex items-center justify-center
-            text-muted-foreground hover:text-foreground
-            transition-colors
-          "
-          aria-label="Center on my location"
-        >
-          <Crosshair className="w-5 h-5" />
-        </motion.button>
+    <div className={`fixed bottom-44 left-4 z-20 flex flex-col gap-2.5 ${className}`}>
+      {onZoomIn && (
+        <ControlButton onClick={onZoomIn} label="Zoom in">
+          <Plus className="w-5 h-5" />
+        </ControlButton>
       )}
-
-      {/* Layers Toggle */}
+      {onZoomOut && (
+        <ControlButton onClick={onZoomOut} label="Zoom out">
+          <Minus className="w-5 h-5" />
+        </ControlButton>
+      )}
+      {onRecenter && (
+        <ControlButton onClick={onRecenter} label="Center on my location">
+          <Crosshair className="w-5 h-5" />
+        </ControlButton>
+      )}
       {onToggleLayers && (
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={onToggleLayers}
-          className={`
-            w-11 h-11 rounded-full
-            bg-background/80 backdrop-blur-md
-            border border-border/50
-            shadow-lg
-            flex items-center justify-center
-            transition-colors
-            ${layersActive ? "text-primary" : "text-muted-foreground hover:text-foreground"}
-          `}
-          aria-label="Toggle map layers"
-        >
+        <ControlButton onClick={onToggleLayers} label="Toggle map layers" active={layersActive}>
           <Layers className="w-5 h-5" />
-        </motion.button>
+        </ControlButton>
       )}
     </div>
   );

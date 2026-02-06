@@ -1089,9 +1089,12 @@ export type Database = {
       user_locations: {
         Row: {
           accuracy: number | null
+          ghost_mode: boolean | null
           heading: number | null
           id: string
+          is_moving: boolean | null
           latitude: number
+          location_name: string | null
           longitude: number
           speed: number | null
           updated_at: string | null
@@ -1099,9 +1102,12 @@ export type Database = {
         }
         Insert: {
           accuracy?: number | null
+          ghost_mode?: boolean | null
           heading?: number | null
           id?: string
+          is_moving?: boolean | null
           latitude: number
+          location_name?: string | null
           longitude: number
           speed?: number | null
           updated_at?: string | null
@@ -1109,9 +1115,12 @@ export type Database = {
         }
         Update: {
           accuracy?: number | null
+          ghost_mode?: boolean | null
           heading?: number | null
           id?: string
+          is_moving?: boolean | null
           latitude?: number
+          location_name?: string | null
           longitude?: number
           speed?: number | null
           updated_at?: string | null
