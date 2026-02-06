@@ -93,6 +93,14 @@ export function MapboxMap({
   const destinationMarkers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const watcherMarkers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   
+  // CRITICAL: Store callbacks in refs so the map init effect never re-runs
+  const onMapLoadRef = useRef(onMapLoad);
+  onMapLoadRef.current = onMapLoad;
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
+  const onLocationUpdateRef = useRef(onLocationUpdate);
+  onLocationUpdateRef.current = onLocationUpdate;
+
   // State for React re-renders (triggers child hooks)
   const [mapReady, setMapReady] = useState(false);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
@@ -175,35 +183,32 @@ export function MapboxMap({
       mapLoadedRef.current = true;
       setMapReady(true);
       
-      if (onMapLoad) {
-        onMapLoad(map);
+      if (onMapLoadRef.current) {
+        onMapLoadRef.current(map);
       }
     });
 
-    // Handle map click for adding pins
-    if (onMapClick) {
-      map.on("click", (e) => {
-        // Guard: ensure map is ready
-        if (!mapLoadedRef.current) return;
-        
-        // Don't trigger if clicking on an incident layer (guard for layer existence)
-        try {
-          const layersToCheck = ["incident-clusters", "incident-points"].filter(
-            (layerId) => map.getLayer(layerId)
-          );
-          if (layersToCheck.length > 0) {
-            const features = map.queryRenderedFeatures(e.point, {
-              layers: layersToCheck,
-            });
-            if (features && features.length > 0) return;
-          }
-        } catch (err) {
-          // Layer might not exist yet, continue with click
+    // Handle map click for adding pins - use ref so handler is always current
+    map.on("click", (e) => {
+      if (!mapLoadedRef.current) return;
+      if (!onMapClickRef.current) return;
+      
+      try {
+        const layersToCheck = ["incident-clusters", "incident-points"].filter(
+          (layerId) => map.getLayer(layerId)
+        );
+        if (layersToCheck.length > 0) {
+          const features = map.queryRenderedFeatures(e.point, {
+            layers: layersToCheck,
+          });
+          if (features && features.length > 0) return;
         }
+      } catch (err) {
+        // Layer might not exist yet, continue with click
+      }
 
-        onMapClick(e.lngLat.lat, e.lngLat.lng);
-      });
-    }
+      onMapClickRef.current(e.lngLat.lat, e.lngLat.lng);
+    });
 
     // Cleanup on unmount
     return () => {
@@ -215,7 +220,7 @@ export function MapboxMap({
         mapRef.current = null;
       }
     };
-  }, [mapboxToken, onMapLoad, onMapClick]);
+  }, [mapboxToken]); // ONLY depends on token - never re-init for callback changes
 
   // Use layer hooks - they receive refs and will guard internally
   useIncidentLayers({
@@ -246,8 +251,8 @@ export function MapboxMap({
       (position) => {
         const { latitude, longitude } = position.coords;
         setUserLocation({ lat: latitude, lng: longitude });
-        if (onLocationUpdate) {
-          onLocationUpdate(latitude, longitude);
+        if (onLocationUpdateRef.current) {
+          onLocationUpdateRef.current(latitude, longitude);
         }
       },
       (error) => {
@@ -259,7 +264,7 @@ export function MapboxMap({
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [showUserLocation, onLocationUpdate]);
+  }, [showUserLocation]);
 
   // Update user marker
   useEffect(() => {
