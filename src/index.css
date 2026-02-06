@@ -214,3 +214,48 @@
     box-shadow: 0 4px 20px -4px hsl(var(--safe) / 0.3);
   }
 }
+
+/* User Avatar Marker Animations */
+.user-avatar-marker {
+  animation: avatarFadeIn 0.3s ease-out;
+}
+
+@keyframes avatarFadeIn {
+  from { opacity: 0; transform: scale(0.8) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.user-location-popup .mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.user-location-popup .mapboxgl-popup-tip {
+  display: none;
+}
+
+/* Better focus states */
+*:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Better tap targets on mobile */
+@media (hover: none) and (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

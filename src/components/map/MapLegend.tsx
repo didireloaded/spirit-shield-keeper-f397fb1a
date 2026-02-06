@@ -1,102 +1,132 @@
 /**
- * Map Legend Panel
- * Shows legend for map markers and layers
+ * Enhanced Map Legend Panel
+ * Slide-in panel with incident types, authorities, and status indicators
  */
 
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, AlertTriangle, Car, User, Skull, HelpCircle, Navigation, Users, Route } from "lucide-react";
+import { Info, X } from "lucide-react";
+import { haptics } from "@/lib/haptics";
 
-type MarkerType = "robbery" | "accident" | "suspicious" | "assault" | "kidnapping" | "other";
+const incidentTypes = [
+  { type: "panic", color: "#ef4444", label: "Emergency Alert", icon: "🚨" },
+  { type: "amber", color: "#f97316", label: "Amber Alert", icon: "⚠️" },
+  { type: "crash", color: "#eab308", label: "Vehicle Crash", icon: "🚗" },
+  { type: "robbery", color: "#8b5cf6", label: "Robbery", icon: "💰" },
+  { type: "assault", color: "#ec4899", label: "Assault", icon: "⚡" },
+  { type: "suspicious", color: "#06b6d4", label: "Suspicious Activity", icon: "👁️" },
+];
 
-const markerTypeConfig: Record<MarkerType, { label: string; icon: any; color: string }> = {
-  robbery: { label: "Robbery", icon: AlertTriangle, color: "bg-destructive" },
-  accident: { label: "Accident", icon: Car, color: "bg-warning" },
-  suspicious: { label: "Suspicious", icon: User, color: "bg-accent" },
-  assault: { label: "Assault", icon: AlertTriangle, color: "bg-destructive" },
-  kidnapping: { label: "Kidnapping", icon: Skull, color: "bg-destructive" },
-  other: { label: "Other", icon: HelpCircle, color: "bg-muted" },
-};
+const authorityTypes = [
+  { type: "police", color: "#3b82f6", label: "Police", icon: "🚔" },
+  { type: "ambulance", color: "#10b981", label: "Ambulance", icon: "🚑" },
+  { type: "authority", color: "#6366f1", label: "Authority", icon: "🏛️" },
+];
 
-interface MapLegendProps {
-  visible: boolean;
-  onClose: () => void;
-  watcherCount?: number;
-  hasActiveRoute?: boolean;
-  className?: string;
-}
+export function MapLegend() {
+  const [isOpen, setIsOpen] = useState(false);
 
-export function MapLegend({
-  visible,
-  onClose,
-  watcherCount = 0,
-  hasActiveRoute = false,
-  className = "",
-}: MapLegendProps) {
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 20 }}
-          className={`glass rounded-xl p-4 w-56 shadow-lg ${className}`}
-        >
-          <h4 className="text-sm font-semibold mb-3 flex items-center justify-between">
-            Map Legend
-            <button onClick={onClose}>
-              <X className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </h4>
+    <>
+      {/* Toggle Button */}
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        onClick={() => {
+          haptics.light();
+          setIsOpen(!isOpen);
+        }}
+        className="fixed top-4 right-4 z-20 w-11 h-11 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-lg flex items-center justify-center text-foreground hover:bg-background transition-colors"
+        aria-label="Toggle map legend"
+      >
+        <Info className="w-5 h-5" />
+      </motion.button>
 
-          <div className="space-y-2">
-            {(Object.keys(markerTypeConfig) as MarkerType[]).map((key) => {
-              const config = markerTypeConfig[key];
-              const Icon = config.icon;
-              return (
-                <div key={key} className="flex items-center gap-2 text-sm">
-                  <div
-                    className={`w-6 h-6 rounded-full ${config.color} flex items-center justify-center`}
-                  >
-                    <Icon className="w-3 h-3 text-white" />
-                  </div>
-                  <span className="text-muted-foreground">{config.label}</span>
-                </div>
-              );
-            })}
+      {/* Legend Panel */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+            />
 
-            <div className="border-t border-border pt-2 mt-2 space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                  <Navigation className="w-3 h-3 text-white" />
-                </div>
-                <span className="text-muted-foreground">Your location</span>
+            <motion.div
+              initial={{ opacity: 0, x: 100 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 100 }}
+              transition={{ type: "spring", damping: 25 }}
+              className="fixed right-4 top-20 z-50 w-72 bg-background rounded-2xl border border-border shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <h3 className="font-semibold text-foreground">Map Legend</h3>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 hover:bg-muted rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </button>
               </div>
 
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center">
-                  <Users className="w-3 h-3 text-white" />
-                </div>
-                <span className="text-muted-foreground">Trusted contacts</span>
-                {watcherCount > 0 && (
-                  <span className="text-xs bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">
-                    {watcherCount}
-                  </span>
-                )}
-              </div>
-
-              {hasActiveRoute && (
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-6 h-6 rounded-full bg-success flex items-center justify-center">
-                    <Route className="w-3 h-3 text-white" />
+              <div className="p-4 space-y-5 max-h-96 overflow-y-auto">
+                {/* Incidents */}
+                <div>
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2.5">
+                    Incident Types
+                  </h4>
+                  <div className="space-y-2">
+                    {incidentTypes.map(({ type, color, label, icon }) => (
+                      <div key={type} className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-sm">{icon}</span>
+                        <span className="text-sm text-foreground">{label}</span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="text-muted-foreground">Active trip route</span>
                 </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+
+                {/* Authorities */}
+                <div>
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2.5">
+                    Emergency Services
+                  </h4>
+                  <div className="space-y-2">
+                    {authorityTypes.map(({ type, color, label, icon }) => (
+                      <div key={type} className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-sm">{icon}</span>
+                        <span className="text-sm text-foreground">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2.5">Status</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded-full bg-destructive flex-shrink-0 animate-pulse" />
+                      <span className="text-sm text-foreground">Active/Ongoing</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded-full bg-warning flex-shrink-0" />
+                      <span className="text-sm text-foreground">In Progress</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 rounded-full bg-success flex-shrink-0" />
+                      <span className="text-sm text-foreground">Resolved</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
