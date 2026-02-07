@@ -46,6 +46,62 @@ export type Database = {
           },
         ]
       }
+      alert_responders: {
+        Row: {
+          badge_number: string | null
+          created_at: string | null
+          eta_minutes: number | null
+          id: string
+          last_updated: string | null
+          latitude: number | null
+          longitude: number | null
+          officer_name: string | null
+          panic_alert_id: string | null
+          phone: string | null
+          responder_type: string
+          status: string | null
+          unit_identifier: string | null
+        }
+        Insert: {
+          badge_number?: string | null
+          created_at?: string | null
+          eta_minutes?: number | null
+          id?: string
+          last_updated?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          officer_name?: string | null
+          panic_alert_id?: string | null
+          phone?: string | null
+          responder_type?: string
+          status?: string | null
+          unit_identifier?: string | null
+        }
+        Update: {
+          badge_number?: string | null
+          created_at?: string | null
+          eta_minutes?: number | null
+          id?: string
+          last_updated?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          officer_name?: string | null
+          panic_alert_id?: string | null
+          phone?: string | null
+          responder_type?: string
+          status?: string | null
+          unit_identifier?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_responders_panic_alert_id_fkey"
+            columns: ["panic_alert_id"]
+            isOneToOne: false
+            referencedRelation: "panic_alerts_broadcast"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alerts: {
         Row: {
           audio_duration_seconds: number | null
@@ -212,6 +268,54 @@ export type Database = {
           type?: Database["public"]["Enums"]["authority_type"]
         }
         Relationships: []
+      }
+      authority_notifications: {
+        Row: {
+          authority_contact_id: string | null
+          created_at: string | null
+          delivered_at: string | null
+          id: string
+          notification_type: string
+          panic_alert_id: string | null
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          authority_contact_id?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          id?: string
+          notification_type?: string
+          panic_alert_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          authority_contact_id?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          id?: string
+          notification_type?: string
+          panic_alert_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authority_notifications_authority_contact_id_fkey"
+            columns: ["authority_contact_id"]
+            isOneToOne: false
+            referencedRelation: "authority_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "authority_notifications_panic_alert_id_fkey"
+            columns: ["panic_alert_id"]
+            isOneToOne: false
+            referencedRelation: "panic_alerts_broadcast"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       comments: {
         Row: {
@@ -737,6 +841,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "panic_alerts_panic_session_id_fkey"
+            columns: ["panic_session_id"]
+            isOneToOne: false
+            referencedRelation: "panic_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      panic_alerts_broadcast: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          id: string
+          latitude: number
+          location_name: string | null
+          longitude: number
+          panic_session_id: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          alert_type?: string
+          created_at?: string | null
+          id?: string
+          latitude: number
+          location_name?: string | null
+          longitude: number
+          panic_session_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          id?: string
+          latitude?: number
+          location_name?: string | null
+          longitude?: number
+          panic_session_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "panic_alerts_broadcast_panic_session_id_fkey"
             columns: ["panic_session_id"]
             isOneToOne: false
             referencedRelation: "panic_sessions"

@@ -5,13 +5,18 @@ import {
   CheckCircle, AlertTriangle, Upload, X, ImageIcon
 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { DestinationAutocomplete } from "@/components/look-after-me/DestinationAutocomplete";
+import { ETADisplay } from "@/components/look-after-me/ETADisplay";
+import { LiveTripMap } from "@/components/look-after-me/LiveTripMap";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useETACalculation } from "@/hooks/useETACalculation";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { pageVariants } from "@/lib/animations";
 
 interface SafetySession {
   id: string;
@@ -40,6 +45,7 @@ const LookAfterMe = () => {
   
   const [activeSession, setActiveSession] = useState<SafetySession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [destinationCoords, setDestinationCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [formData, setFormData] = useState({
     destination: "",
     departureTime: "",
@@ -49,6 +55,11 @@ const LookAfterMe = () => {
     licensePlate: "",
     companionPhone: "",
   });
+
+  const { eta, loading: etaLoading } = useETACalculation(
+    latitude && longitude ? { lat: latitude, lng: longitude } : null,
+    destinationCoords
+  );
 
   // Notify watchers about trip status
   const notifyWatchersAboutTrip = useCallback(async (status: "late" | "arrived" | "emergency") => {
@@ -239,7 +250,7 @@ const LookAfterMe = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit" className="min-h-screen bg-background pb-24">
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {/* Main Toggle Button */}
         <motion.button
@@ -261,6 +272,18 @@ const LookAfterMe = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-4"
           >
+            {/* Live Trip Map */}
+            {activeSession && destinationCoords && (
+              <LiveTripMap
+                destination={{
+                  name: activeSession.destination,
+                  lat: destinationCoords.lat,
+                  lng: destinationCoords.lng,
+                }}
+                expectedArrival={formData.expectedArrival || new Date(activeSession.expected_arrival).toTimeString().slice(0, 5)}
+              />
+            )}
+
             <div className="bg-card rounded-2xl p-5 border border-success/30">
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle className="w-5 h-5 text-success" />
@@ -312,20 +335,25 @@ const LookAfterMe = () => {
           >
             <h3 className="font-semibold text-lg">Trip Details</h3>
 
-            {/* Destination */}
+            {/* Destination with Autocomplete */}
             <div>
               <label className="text-sm text-muted-foreground mb-1 block">Destination *</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Where are you going?"
-                  value={formData.destination}
-                  onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+              <DestinationAutocomplete
+                value={formData.destination}
+                onChange={(value, coords) => {
+                  setFormData({ ...formData, destination: value });
+                  if (coords) setDestinationCoords(coords);
+                }}
+              />
             </div>
+
+            {/* Smart ETA */}
+            {eta && !activeSession && (
+              <ETADisplay
+                eta={eta}
+                onAccept={(time) => setFormData({ ...formData, expectedArrival: time })}
+              />
+            )}
 
             {/* Time inputs */}
             <div className="grid grid-cols-2 gap-3">
@@ -454,7 +482,7 @@ const LookAfterMe = () => {
       </main>
 
       <BottomNav />
-    </div>
+    </motion.div>
   );
 };
 
