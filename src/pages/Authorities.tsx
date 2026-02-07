@@ -25,6 +25,8 @@ import {
 import { BottomNav } from "@/components/BottomNav";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { QuickDialPanel } from "@/components/authorities/QuickDialPanel";
+import { EmergencyDispatchCenter } from "@/components/authorities/EmergencyDispatchCenter";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 
@@ -58,7 +60,7 @@ const SEVERITY_UI = {
   },
 };
 
-type TabType = "contacts" | "alerts";
+type TabType = "contacts" | "alerts" | "dispatch";
 
 const Authorities = () => {
   const [contacts, setContacts] = useState<AuthorityContact[]>([]);
@@ -233,28 +235,28 @@ const Authorities = () => {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+        {/* Quick Dial Panel */}
+        <QuickDialPanel />
+
         {/* Tab Switcher */}
         <div className="flex gap-2 p-1 bg-secondary rounded-xl">
-          <button
-            onClick={() => setActiveTab("contacts")}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === "contacts"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Emergency Contacts
-          </button>
-          <button
-            onClick={() => setActiveTab("alerts")}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === "alerts"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Official Alerts
-          </button>
+          {[
+            { key: "contacts", label: "Contacts" },
+            { key: "alerts", label: "Alerts" },
+            { key: "dispatch", label: "🚨 Dispatch" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as TabType)}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {activeTab === "contacts" ? (
@@ -349,9 +351,10 @@ const Authorities = () => {
               <EmptyState type="no-incidents" compact className="mt-4" />
             )}
           </>
-        ) : (
-          /* Official Alerts Tab - Per PDF Authority Feed specs */
+        ) : activeTab === "alerts" ? (
           <OfficialAlertsTab />
+        ) : (
+          <EmergencyDispatchCenter />
         )}
       </main>
 
