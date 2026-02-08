@@ -6,6 +6,8 @@ import { MiniMap } from "@/components/MiniMap";
 import { AlertDetailsModal } from "@/components/AlertDetailsModal";
 import { AmberAlertDetailsModal } from "@/components/AmberAlertDetailsModal";
 import { EmptyState } from "@/components/EmptyState";
+import { EnhancedPanicButton } from "@/components/panic/EnhancedPanicButton";
+import { LivePanicFeed } from "@/components/panic/LivePanicFeed";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAudioRecording } from "@/hooks/useAudioRecording";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -210,43 +212,8 @@ const Alerts = () => {
           </div>
         </div>
 
-        {/* Emergency Buttons - Side by Side Circles */}
-        <div className="flex justify-center gap-6">
-          {/* Panic Button - Circle */}
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={handlePanicPress}
-            className={`relative w-32 h-32 rounded-full flex flex-col items-center justify-center transition-all ${
-              isRecording
-                ? "bg-destructive shadow-panic"
-                : "bg-destructive hover:bg-destructive/90 panic-pulse"
-            }`}
-          >
-            {isRecording ? (
-              <div className="flex flex-col items-center">
-                <div className="w-3 h-3 bg-white rounded-full recording-pulse mb-2" />
-                <Mic className="w-6 h-6 text-white mb-1" />
-                <span className="text-lg font-mono font-bold text-white">{formatTime(recordingTime)}</span>
-                <span className="text-[10px] text-white/80 mt-1">Tap to stop</span>
-              </div>
-            ) : (
-              <>
-                <Shield className="w-10 h-10 text-white mb-1" />
-                <span className="text-base font-bold text-white">PANIC</span>
-              </>
-            )}
-          </motion.button>
-
-          {/* Amber Alert Button - Circle */}
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowAmberForm(true)}
-            className="w-32 h-32 rounded-full bg-warning hover:bg-warning/90 flex flex-col items-center justify-center transition-all"
-          >
-            <AlertTriangle className="w-10 h-10 text-warning-foreground mb-1" />
-            <span className="text-base font-bold text-warning-foreground">AMBER</span>
-          </motion.button>
-        </div>
+        {/* Enhanced Emergency Button with Incident Types */}
+        <EnhancedPanicButton />
 
         {/* Collapsible Critical Alerts */}
         <Collapsible open={alertsExpanded} onOpenChange={setAlertsExpanded}>
@@ -368,6 +335,12 @@ const Alerts = () => {
             </div>
           </div>
         </div>
+
+        {/* Live Panic Feed */}
+        <section>
+          <h2 className="text-lg font-semibold mb-3">🔴 Live Emergency Alerts</h2>
+          <LivePanicFeed />
+        </section>
 
         {/* Mini Map */}
         <section>
