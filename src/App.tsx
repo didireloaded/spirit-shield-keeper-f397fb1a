@@ -20,6 +20,7 @@ import Community from "./pages/Community";
 import Profile from "./pages/Profile";
 import Watchers from "./pages/Watchers";
 import NotificationSettings from "./pages/NotificationSettings";
+import AmberAlertChat from "./pages/AmberAlertChat";
 import NotFound from "./pages/NotFound";
 
 // Configure React Query with production-ready defaults
@@ -123,6 +124,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <NotificationSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/amber-chat/:roomId"
+              element={
+                <ProtectedRoute>
+                  <AmberAlertChat />
                 </ProtectedRoute>
               }
             />

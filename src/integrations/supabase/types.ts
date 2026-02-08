@@ -317,6 +317,100 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          chat_room_id: string
+          created_at: string | null
+          id: string
+          is_deleted: boolean | null
+          message: string
+          sighting_latitude: number | null
+          sighting_longitude: number | null
+          sighting_photo_url: string | null
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          chat_room_id: string
+          created_at?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          message: string
+          sighting_latitude?: number | null
+          sighting_longitude?: number | null
+          sighting_photo_url?: string | null
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          chat_room_id?: string
+          created_at?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          message?: string
+          sighting_latitude?: number | null
+          sighting_longitude?: number | null
+          sighting_photo_url?: string | null
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_chat_room_id_fkey"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_rooms: {
+        Row: {
+          closed_at: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          message_count: number | null
+          panic_session_id: string | null
+          participant_count: number | null
+          title: string
+          type: string | null
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          message_count?: number | null
+          panic_session_id?: string | null
+          participant_count?: number | null
+          title: string
+          type?: string | null
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          message_count?: number | null
+          panic_session_id?: string | null
+          participant_count?: number | null
+          title?: string
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_rooms_panic_session_id_fkey"
+            columns: ["panic_session_id"]
+            isOneToOne: false
+            referencedRelation: "panic_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           content: string
@@ -532,6 +626,48 @@ export type Database = {
           created_at?: string | null
           id?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      incident_types: {
+        Row: {
+          auto_notify_authorities: boolean | null
+          category: string
+          color: string
+          description: string | null
+          estimated_response_time: number | null
+          icon: string
+          id: string
+          instructions: string | null
+          name: string
+          requires_photo: boolean | null
+          requires_recording: boolean | null
+        }
+        Insert: {
+          auto_notify_authorities?: boolean | null
+          category: string
+          color: string
+          description?: string | null
+          estimated_response_time?: number | null
+          icon: string
+          id?: string
+          instructions?: string | null
+          name: string
+          requires_photo?: boolean | null
+          requires_recording?: boolean | null
+        }
+        Update: {
+          auto_notify_authorities?: boolean | null
+          category?: string
+          color?: string
+          description?: string | null
+          estimated_response_time?: number | null
+          icon?: string
+          id?: string
+          instructions?: string | null
+          name?: string
+          requires_photo?: boolean | null
+          requires_recording?: boolean | null
         }
         Relationships: []
       }
@@ -942,33 +1078,42 @@ export type Database = {
       panic_location_logs: {
         Row: {
           accuracy: number | null
+          battery_level: number | null
           created_at: string
           heading: number | null
           id: string
+          is_moving: boolean | null
           lat: number
           lng: number
+          location_name: string | null
           panic_session_id: string
           recorded_at: string
           speed: number | null
         }
         Insert: {
           accuracy?: number | null
+          battery_level?: number | null
           created_at?: string
           heading?: number | null
           id?: string
+          is_moving?: boolean | null
           lat: number
           lng: number
+          location_name?: string | null
           panic_session_id: string
           recorded_at?: string
           speed?: number | null
         }
         Update: {
           accuracy?: number | null
+          battery_level?: number | null
           created_at?: string
           heading?: number | null
           id?: string
+          is_moving?: boolean | null
           lat?: number
           lng?: number
+          location_name?: string | null
           panic_session_id?: string
           recorded_at?: string
           speed?: number | null
@@ -985,17 +1130,28 @@ export type Database = {
       }
       panic_sessions: {
         Row: {
+          chat_room_id: string | null
           consent_given: boolean
           created_at: string
+          current_location_name: string | null
+          description: string | null
           device_info: Json | null
           ended_at: string | null
           escalated: boolean | null
           id: string
+          incident_type: string | null
           initial_lat: number
           initial_lng: number
+          is_moving: boolean | null
           last_known_lat: number
           last_known_lng: number
           last_location_at: string
+          location_name: string | null
+          participants_count: number | null
+          recording_status: string | null
+          responders_needed: string[] | null
+          session_type: string | null
+          severity: string | null
           started_at: string
           status: string
           threat_score: number | null
@@ -1004,17 +1160,28 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          chat_room_id?: string | null
           consent_given?: boolean
           created_at?: string
+          current_location_name?: string | null
+          description?: string | null
           device_info?: Json | null
           ended_at?: string | null
           escalated?: boolean | null
           id?: string
+          incident_type?: string | null
           initial_lat: number
           initial_lng: number
+          is_moving?: boolean | null
           last_known_lat: number
           last_known_lng: number
           last_location_at?: string
+          location_name?: string | null
+          participants_count?: number | null
+          recording_status?: string | null
+          responders_needed?: string[] | null
+          session_type?: string | null
+          severity?: string | null
           started_at?: string
           status?: string
           threat_score?: number | null
@@ -1023,17 +1190,28 @@ export type Database = {
           user_id: string
         }
         Update: {
+          chat_room_id?: string | null
           consent_given?: boolean
           created_at?: string
+          current_location_name?: string | null
+          description?: string | null
           device_info?: Json | null
           ended_at?: string | null
           escalated?: boolean | null
           id?: string
+          incident_type?: string | null
           initial_lat?: number
           initial_lng?: number
+          is_moving?: boolean | null
           last_known_lat?: number
           last_known_lng?: number
           last_location_at?: string
+          location_name?: string | null
+          participants_count?: number | null
+          recording_status?: string | null
+          responders_needed?: string[] | null
+          session_type?: string | null
+          severity?: string | null
           started_at?: string
           status?: string
           threat_score?: number | null
@@ -1041,7 +1219,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "panic_sessions_chat_room_fk"
+            columns: ["chat_room_id"]
+            isOneToOne: false
+            referencedRelation: "chat_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       post_likes: {
         Row: {
