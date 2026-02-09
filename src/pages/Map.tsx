@@ -8,6 +8,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
+import { useSearchParams } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import MapboxMap from "@/components/MapboxMap";
 import IncidentDetailsModal from "@/components/IncidentDetailsModal";
@@ -22,6 +23,7 @@ import { ReportsBottomSheet } from "@/components/map/ReportsBottomSheet";
 import { ReportFab } from "@/components/map/ReportFab";
 import { IncidentReportModal } from "@/components/map/IncidentReportModal";
 import { CrosshairIndicator } from "@/components/map/CrosshairIndicator";
+import { ActiveTripBanner } from "@/components/map/ActiveTripBanner";
 import { NearYouStrip } from "@/components/map/NearYouStrip";
 import { UserAvatarMarkers } from "@/components/map/UserAvatarMarkers";
 import { LiveLocationLabel } from "@/components/map/LiveLocationLabel";
@@ -46,6 +48,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const Map = () => {
+  // URL params for navigating to specific location
+  const [searchParams] = useSearchParams();
+
   // UI State
   const [ghostMode, setGhostMode] = useState(false);
   const [showAddPin, setShowAddPin] = useState(false);
@@ -54,6 +59,7 @@ const Map = () => {
   const [heading, setHeading] = useState(0);
   const [speed, setSpeed] = useState(0);
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
+  const hasNavigatedToParams = useRef(false);
 
   // Auth & Location
   const { user } = useAuth();
@@ -151,6 +157,22 @@ const Map = () => {
     mapInstanceRef.current = map;
     setIdleRef.current();
   }, []);
+
+  // Navigate to URL params (from "View on Map" in LivePanicFeed)
+  useEffect(() => {
+    if (!mapInstanceRef.current || hasNavigatedToParams.current || !mapEngine.isIdle) return;
+    const lat = searchParams.get("lat");
+    const lng = searchParams.get("lng");
+    const zoom = searchParams.get("zoom");
+    if (lat && lng) {
+      hasNavigatedToParams.current = true;
+      mapInstanceRef.current.flyTo({
+        center: [parseFloat(lng), parseFloat(lat)],
+        zoom: zoom ? parseFloat(zoom) : 16,
+        duration: 1500,
+      });
+    }
+  }, [searchParams, mapEngine.isIdle]);
 
   const handleGhostToggle = useCallback(async (enabled: boolean) => {
     if (!user) return;
@@ -266,6 +288,9 @@ const Map = () => {
 
         {/* Floating top controls (back button) */}
         <MapTopControls />
+
+        {/* Active Trip Banner */}
+        <ActiveTripBanner className="fixed top-14 left-4 right-4 z-20" />
 
         {/* Enhanced Search Bar */}
         <MapSearchBar

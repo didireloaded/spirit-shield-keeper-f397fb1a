@@ -58,6 +58,8 @@ const Index = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
 
   useEffect(() => {
     fetchPosts();
@@ -184,6 +186,14 @@ const Index = () => {
     return emojis[name.charCodeAt(0) % emojis.length];
   };
 
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await fetchPosts();
+    if (user) await fetchLikedPosts();
+    setIsRefreshing(false);
+    toast.success('Feed refreshed');
+  }, [user]);
+
   return (
     <motion.div
       variants={pageVariants}
@@ -192,7 +202,39 @@ const Index = () => {
       exit="exit"
       className="min-h-screen bg-background pb-24"
     >
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
+      <main
+        className="max-w-lg mx-auto px-4 py-6 space-y-4"
+        onTouchStart={(e) => {
+          if (window.scrollY === 0) {
+            (e.currentTarget as any).__startY = e.touches[0].clientY;
+          }
+        }}
+        onTouchMove={(e) => {
+          if (window.scrollY === 0 && !isRefreshing) {
+            const startY = (e.currentTarget as any).__startY || 0;
+            const distance = e.touches[0].clientY - startY;
+            if (distance > 0) setPullDistance(Math.min(distance, 80));
+          }
+        }}
+        onTouchEnd={() => {
+          if (pullDistance > 60) handleRefresh();
+          setPullDistance(0);
+        }}
+      >
+        {/* Pull-to-refresh indicator */}
+        {pullDistance > 0 && (
+          <motion.div className="flex justify-center py-2" animate={{ opacity: pullDistance / 60 }}>
+            <motion.div
+              animate={{ rotate: pullDistance * 3 }}
+              className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full"
+            />
+          </motion.div>
+        )}
+        {isRefreshing && (
+          <div className="flex justify-center py-2">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
         {/* Safety Status Banner */}
         <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
           <SafetyStatusBanner />
