@@ -6,7 +6,7 @@ import { MiniMap } from "@/components/MiniMap";
 import { AlertDetailsModal } from "@/components/AlertDetailsModal";
 import { AmberAlertDetailsModal } from "@/components/AmberAlertDetailsModal";
 import { EmptyState } from "@/components/EmptyState";
-import { EnhancedPanicButton } from "@/components/panic/EnhancedPanicButton";
+import { PanicButton } from "@/components/PanicButton";
 import { LivePanicFeed } from "@/components/panic/LivePanicFeed";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAudioRecording } from "@/hooks/useAudioRecording";
@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 interface Marker {
   id: string;
   latitude: number;
@@ -92,20 +93,17 @@ const Alerts = () => {
 
   const handlePanicPress = useCallback(async () => {
     if (isRecording) {
-      // Stop recording
       await stopRecording();
       toast.success("Recording saved. Alert sent to authorities.");
       setActiveAlertId(null);
       return;
     }
 
-    // Start recording and create alert
     if (!latitude || !longitude) {
       toast.error("Unable to get your location. Please enable GPS.");
       return;
     }
 
-    // Check rate limit before allowing SOS
     const allowed = await checkSOSLimit();
     if (!allowed) return;
 
@@ -129,7 +127,6 @@ const Alerts = () => {
       return;
     }
 
-    // Check rate limit for Amber alerts
     const allowed = await checkAmberLimit();
     if (!allowed) return;
 
@@ -170,7 +167,6 @@ const Alerts = () => {
   const activeAlerts = alerts.filter((a) => a.status === "active");
   const userLocation = latitude && longitude ? { latitude, longitude } : null;
 
-  // Calculate distance between two points
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371;
     const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -212,8 +208,41 @@ const Alerts = () => {
           </div>
         </div>
 
-        {/* Enhanced Emergency Button with Incident Types */}
-        <EnhancedPanicButton />
+        {/* Side-by-Side Panic & Amber Buttons */}
+        <div className="flex items-center justify-center gap-8">
+          <PanicButton variant="panic" />
+          <PanicButton variant="amber" />
+        </div>
+
+        {/* Recording indicator */}
+        <AnimatePresence>
+          {isRecording && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-destructive/10 border-2 border-destructive/30 rounded-xl p-4 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <Mic className="w-5 h-5 text-destructive animate-pulse" />
+                <div>
+                  <p className="font-semibold text-destructive text-sm">Recording Active</p>
+                  <p className="text-xs text-muted-foreground">Audio evidence being captured</p>
+                </div>
+              </div>
+              <span className="font-mono text-destructive font-bold">{formatTime(recordingTime)}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Amber Alert Quick Trigger */}
+        <button
+          onClick={() => setShowAmberForm(true)}
+          className="w-full py-4 bg-warning/10 hover:bg-warning/20 border-2 border-warning/30 rounded-xl text-warning font-semibold transition-colors flex items-center justify-center gap-2"
+        >
+          <AlertTriangle className="w-5 h-5" />
+          Report Amber Alert (Missing Person)
+        </button>
 
         {/* Collapsible Critical Alerts */}
         <Collapsible open={alertsExpanded} onOpenChange={setAlertsExpanded}>
@@ -382,7 +411,6 @@ const Alerts = () => {
                 </div>
 
                 <div className="space-y-4">
-                  {/* Description */}
                   <div>
                     <label className="text-sm text-muted-foreground mb-1 block">Description *</label>
                     <textarea
@@ -394,7 +422,6 @@ const Alerts = () => {
                     />
                   </div>
 
-                  {/* Photo Upload */}
                   {amberPhotoPreview ? (
                     <div className="relative">
                       <img
@@ -427,7 +454,6 @@ const Alerts = () => {
                     </button>
                   )}
 
-                  {/* Outfit */}
                   <div>
                     <label className="text-sm text-muted-foreground mb-1 block">Outfit Description</label>
                     <input
@@ -439,7 +465,6 @@ const Alerts = () => {
                     />
                   </div>
 
-                  {/* Vehicle Details */}
                   <div className="p-4 bg-secondary/50 rounded-xl space-y-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                       <Car className="w-4 h-4" />
@@ -470,7 +495,6 @@ const Alerts = () => {
                     </div>
                   </div>
 
-                  {/* Submit */}
                   <button
                     onClick={handleAmberSubmit}
                     disabled={!amberFormData.description}
@@ -484,7 +508,7 @@ const Alerts = () => {
           )}
         </AnimatePresence>
 
-        {/* Alert Details Modal - Use AmberAlertDetailsModal for amber alerts */}
+        {/* Alert Details Modal */}
         <AnimatePresence>
           {selectedAlert && selectedAlert.type === "amber" ? (
             <AmberAlertDetailsModal
