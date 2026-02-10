@@ -3,7 +3,7 @@
  * Modal for reporting new incidents on the map
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, AlertTriangle, MapPin, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,44 @@ interface IncidentReportModalProps {
   onSuccess?: () => void;
 }
 
+function LocationDisplay({ lat, lng }: { lat: number; lng: number }) {
+  const [name, setName] = useState("Fetching location...");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("get-mapbox-token");
+        if (error || !data?.token) { setName("Location confirmed"); return; }
+        const res = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?types=neighborhood,locality,place,address&limit=1&access_token=${data.token}`
+        );
+        const json = await res.json();
+        if (!cancelled) {
+          setName(json.features?.[0]?.place_name?.split(",").slice(0, 2).join(", ") || "Location confirmed");
+        }
+      } catch {
+        if (!cancelled) setName("Location confirmed");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [lat, lng]);
+
+  return (
+    <div className="bg-secondary/50 rounded-xl p-4 border border-border">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-success/20 rounded-lg flex items-center justify-center">
+          <MapPin className="w-4 h-4 text-success" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-success">Location confirmed</p>
+          <p className="text-xs text-muted-foreground">{name}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function IncidentReportModal({
   visible,
   location,
@@ -37,8 +75,11 @@ export function IncidentReportModal({
 
   const handleSubmit = async () => {
     if (!user || !location) return;
+    if (!description.trim()) {
+      toast.error("Please provide a description");
+      return;
+    }
 
-    // Check rate limit
     const allowed = await checkIncidentLimit();
     if (!allowed) return;
 
@@ -52,7 +93,7 @@ export function IncidentReportModal({
           latitude: location.lat,
           longitude: location.lng,
           type: selectedType,
-          description: description || null,
+          description: description,
         })
         .select()
         .single();
@@ -67,12 +108,9 @@ export function IncidentReportModal({
         onSuccess?.();
         onClose();
 
-        // Send notification to nearby users
         if (data) {
           supabase.functions
-            .invoke("send-incident-notification", {
-              body: { marker: data },
-            })
+            .invoke("send-incident-notification", { body: { marker: data } })
             .catch((err) => console.error("Notification error:", err));
         }
       }
@@ -95,9 +133,7 @@ export function IncidentReportModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) handleCancel();
-          }}
+          onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -114,15 +150,10 @@ export function IncidentReportModal({
                   </div>
                   <div>
                     <h2 className="text-lg font-bold">Report Incident</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Location selected on map
-                    </p>
+                    <p className="text-sm text-muted-foreground">Location selected on map</p>
                   </div>
                 </div>
-                <button
-                  onClick={handleCancel}
-                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                >
+                <button onClick={handleCancel} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -130,38 +161,27 @@ export function IncidentReportModal({
 
             {/* Form */}
             <div className="px-6 py-5 space-y-5">
-              {/* Location Display */}
-              <div className="bg-secondary/50 rounded-xl p-4 border border-border">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-success/20 rounded-lg flex items-center justify-center">
-                    <MapPin className="w-4 h-4 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-success">Location confirmed</p>
-                    <p className="text-xs text-muted-foreground font-mono">
-                      {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {/* Location Display — human readable, no coordinates */}
+              <LocationDisplay lat={location.lat} lng={location.lng} />
 
-              {/* Incident Type - Uses DB-driven picker with fallback */}
+              {/* Incident Type */}
               <IncidentTypePicker
                 selectedType={selectedType}
                 onSelect={(type) => setSelectedType(type as MarkerType)}
               />
 
-              {/* Description */}
+              {/* Description — required */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">
-                  Description <span className="text-muted-foreground">(Optional)</span>
+                  Description <span className="text-destructive">*</span>
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Provide additional details about the incident..."
+                  placeholder="Describe what happened..."
                   className="w-full px-4 py-3 bg-secondary/50 border border-border rounded-xl text-sm placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none resize-none transition-all"
                   rows={3}
+                  style={{ fontSize: "16px" }}
                 />
               </div>
             </div>
@@ -173,7 +193,7 @@ export function IncidentReportModal({
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !description.trim()}
                 className="flex-1 h-12 bg-warning hover:bg-warning/90 text-warning-foreground rounded-xl font-semibold"
               >
                 <Check className="w-5 h-5 mr-2" />
