@@ -5,3 +5,5 @@ export { CreatePostSheet } from "./CreatePostSheet";
 export { FeedSkeleton } from "./FeedSkeleton";
 export { CommunityTopBar } from "./CommunityTopBar";
 export { PostDetailSheet } from "./PostDetailSheet";
+export { CommunityFilterBar } from "./CommunityFilterBar";
+export { CommunityThreadCard } from "./CommunityThreadCard";
