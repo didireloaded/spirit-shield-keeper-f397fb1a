@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, Shield, Mic, MapPin, Upload, Radio } from "lucide-react";
+import { AlertTriangle, Shield, Mic, MapPin, Upload, Radio, Search } from "lucide-react";
 import { usePanicSession } from "@/hooks/usePanicSession";
 
 interface PanicButtonProps {
@@ -38,8 +38,8 @@ export const PanicButton = ({ variant = "panic", onAmberTap }: PanicButtonProps)
     }
   }, [isPanic, isActive, startPanic, endPanic, onAmberTap]);
 
-  const gradientClass = isPanic ? "gradient-panic" : "bg-warning";
-  const shadowClass = isPanic ? "shadow-panic" : "shadow-lg";
+  const gradientClass = isPanic ? "gradient-panic" : "bg-amber-500";
+  const shadowClass = isPanic ? "shadow-panic" : "shadow-[0_4px_20px_rgba(245,158,11,0.4)]";
 
   return (
     <div className="relative flex flex-col items-center">
@@ -113,7 +113,11 @@ export const PanicButton = ({ variant = "panic", onAmberTap }: PanicButtonProps)
                 cursor-pointer select-none
               `}
             >
-              <Shield className="w-8 h-8 text-white" />
+              {isPanic ? (
+                <Shield className="w-8 h-8 text-white" />
+              ) : (
+                <Search className="w-8 h-8 text-white" />
+              )}
               <span className="text-[10px] font-bold text-white uppercase tracking-wide">
                 {buttonLabel}
               </span>
