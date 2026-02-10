@@ -473,3 +473,32 @@ img {
   max-width: 100%;
   height: auto;
 }
+
+/* ── Panic popup: remove Mapbox default tooltip styling ── */
+.mapboxgl-popup.panic-popup-modern .mapboxgl-popup-content {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+.mapboxgl-popup.panic-popup-modern .mapboxgl-popup-tip {
+  display: none;
+}
+/* Amber popup same treatment */
+.mapboxgl-popup.amber-popup .mapboxgl-popup-content {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+.mapboxgl-popup.amber-popup .mapboxgl-popup-tip {
+  display: none;
+}
+/* Legacy panic popup override */
+.mapboxgl-popup.panic-popup .mapboxgl-popup-content {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+.mapboxgl-popup.panic-popup .mapboxgl-popup-tip {
+  display: none;
+}
