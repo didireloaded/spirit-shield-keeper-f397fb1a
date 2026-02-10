@@ -3,10 +3,10 @@
  * Floating label showing user's current location name
  */
 
-import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Navigation, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useFormattedLocation } from "@/lib/locationFormatter";
 
 interface LiveLocationLabelProps {
   latitude: number;
@@ -27,48 +27,11 @@ export function LiveLocationLabel({
   speed = 0,
   mapboxToken,
 }: LiveLocationLabelProps) {
-  const [location, setLocation] = useState(locationName || "Updating location...");
-  const [loading, setLoading] = useState(!locationName);
-
-  useEffect(() => {
-    if (locationName) {
-      setLocation(locationName);
-      setLoading(false);
-      return;
-    }
-
-    // Reverse geocode
-    const token = mapboxToken || import.meta.env.VITE_MAPBOX_TOKEN;
-    if (!token) {
-      setLocation("Location unavailable");
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${token}&types=place,neighborhood,locality`
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data.features?.length > 0) {
-          setLocation(data.features[0].place_name.split(",").slice(0, 2).join(",").trim());
-        } else {
-          setLocation("Unknown Location");
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLocation("Location unavailable");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [latitude, longitude, locationName, mapboxToken]);
+  const { locationName: resolvedName, loading } = useFormattedLocation(
+    locationName ? null : latitude,
+    locationName ? null : longitude
+  );
+  const location = locationName || resolvedName;
 
   const speedMph = (speed * 2.237).toFixed(0);
 

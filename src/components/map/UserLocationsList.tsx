@@ -1,14 +1,16 @@
 /**
  * User Locations List Sidebar
- * Shows nearby active users with distance and status
+ * Shows nearby active users with human-readable locations
+ * Respects ghost mode globally
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, X, Navigation, MapPin } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { UserLocation } from "@/hooks/useRealtimeLocations";
 import { formatDistance, distanceInMeters } from "@/lib/geo";
+import { formatLocation } from "@/lib/locationFormatter";
 import { haptics } from "@/lib/haptics";
 
 interface UserLocationsListProps {
@@ -30,6 +32,30 @@ export function UserLocationsList({
   onUserSelect,
 }: UserLocationsListProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({});
+  const resolveQueueRef = useRef<Set<string>>(new Set());
+
+  // Resolve location names for all users when sidebar opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    locations.forEach((loc) => {
+      // If we already have a name from the DB or resolved cache, skip
+      if (loc.location_name || resolvedNames[loc.user_id]) return;
+      if (resolveQueueRef.current.has(loc.user_id)) return;
+
+      resolveQueueRef.current.add(loc.user_id);
+
+      formatLocation(loc.latitude, loc.longitude).then((name) => {
+        setResolvedNames((prev) => ({ ...prev, [loc.user_id]: name }));
+        resolveQueueRef.current.delete(loc.user_id);
+      });
+    });
+  }, [isOpen, locations, resolvedNames]);
+
+  const getLocationName = (loc: UserLocation): string => {
+    return loc.location_name || resolvedNames[loc.user_id] || "Resolving location...";
+  };
 
   const sortedLocations = currentUserLocation
     ? [...locations].sort((a, b) => {
@@ -50,7 +76,7 @@ export function UserLocationsList({
           haptics.light();
           setIsOpen(!isOpen);
         }}
-        className="fixed top-20 left-4 z-20 flex items-center gap-2 px-3 py-2 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-lg text-foreground hover:bg-background transition-colors"
+        className="fixed top-16 left-4 z-20 flex items-center gap-2 px-3 py-2 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-lg text-foreground hover:bg-background transition-colors"
       >
         <Users className="w-4 h-4" />
         <span className="text-sm font-medium">{locations.length} Online</span>
@@ -149,7 +175,7 @@ export function UserLocationsList({
                               {location.profile?.full_name || "Anonymous User"}
                             </p>
                             <p className="text-sm text-muted-foreground truncate">
-                              {location.location_name || "Unknown location"}
+                              {getLocationName(location)}
                             </p>
                             <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                               {distance !== null && (

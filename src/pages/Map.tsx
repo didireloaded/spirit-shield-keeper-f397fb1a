@@ -31,6 +31,8 @@ import { GhostModeToggle } from "@/components/map/GhostModeToggle";
 import { UserLocationsList } from "@/components/map/UserLocationsList";
 import { SpeedCompass } from "@/components/map/SpeedCompass";
 import { QuickActionsMenu } from "@/components/map/QuickActionsMenu";
+import { PanicAlertMapLayer } from "@/components/map/PanicAlertMapLayer";
+import { LookAfterMeMapLayer } from "@/components/map/LookAfterMeMapLayer";
 
 // Hooks
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -285,6 +287,15 @@ const Map = () => {
           currentUserId={user?.id}
           onUserClick={handleUserSelect}
         />
+
+        {/* Panic Alert Live Layer */}
+        <PanicAlertMapLayer
+          map={mapInstanceRef.current}
+          currentUserId={user?.id}
+        />
+
+        {/* Look After Me Tracking Layer */}
+        <LookAfterMeMapLayer map={mapInstanceRef.current} />
 
         {/* Floating top controls (back button) */}
         <MapTopControls />
