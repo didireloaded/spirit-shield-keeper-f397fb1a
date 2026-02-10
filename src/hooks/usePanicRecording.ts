@@ -31,7 +31,7 @@ export function usePanicRecording() {
         .then((reg) => {
           workerRef.current = reg;
         })
-        .catch((err) => console.warn("[PanicRecording] SW registration failed:", err));
+        .catch(() => {});
 
       // Listen for messages from SW
       navigator.serviceWorker.addEventListener("message", (event) => {
@@ -39,7 +39,7 @@ export function usePanicRecording() {
         if (type === "CHUNK_UPLOADED") {
           setChunkCount(chunkIndex + 1);
         } else if (type === "CHUNK_ERROR") {
-          console.error("[PanicRecording] Chunk upload error:", event.data.error);
+          // Chunk upload error - non-critical
         }
       });
     }
@@ -51,7 +51,7 @@ export function usePanicRecording() {
         wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
       }
     } catch (err) {
-      console.warn("[PanicRecording] Wake Lock failed:", err);
+      // Wake Lock not available
     }
   };
 

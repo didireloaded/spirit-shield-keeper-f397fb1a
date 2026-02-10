@@ -100,7 +100,6 @@ export function IncidentReportModal({
 
       if (error) {
         toast.error("Failed to report incident");
-        console.error(error);
       } else {
         toast.success("Incident reported!");
         setDescription("");
@@ -111,7 +110,7 @@ export function IncidentReportModal({
         if (data) {
           supabase.functions
             .invoke("send-incident-notification", { body: { marker: data } })
-            .catch((err) => console.error("Notification error:", err));
+            .catch(() => {});
         }
       }
     } finally {

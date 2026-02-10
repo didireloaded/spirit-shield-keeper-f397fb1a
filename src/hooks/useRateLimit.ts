@@ -59,7 +59,7 @@ export const useRateLimit = () => {
 
       const config = DEFAULT_LIMITS[actionKey];
       if (!config) {
-        console.warn(`[RateLimit] Unknown action: ${actionKey}`);
+        // Unknown action - allow by default
         return true; // Allow if not configured
       }
 

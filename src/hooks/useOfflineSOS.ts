@@ -102,7 +102,6 @@ export const useOfflineSOS = () => {
     const message = formatSMSMessage(lat, lng);
 
     if (contacts.length === 0) {
-      console.warn("[OfflineSOS] No emergency contacts with phone numbers");
       return false;
     }
 
@@ -140,14 +139,14 @@ export const useOfflineSOS = () => {
     };
 
     setQueue((prev) => [...prev, newSOS]);
-    console.log("[OfflineSOS] SOS queued for sync:", newSOS);
+    // SOS queued for sync
     
     return newSOS.id;
   }, []);
 
   // Trigger offline SOS (SMS + Call + Queue)
   const triggerOfflineSOS = useCallback(async (lat: number, lng: number) => {
-    console.log("[OfflineSOS] Triggering offline SOS...");
+    // Triggering offline SOS
 
     // Queue for later sync
     queueOfflineSOS(lat, lng);
@@ -171,7 +170,7 @@ export const useOfflineSOS = () => {
     if (unsynced.length === 0) return;
 
     setIsSyncing(true);
-    console.log(`[OfflineSOS] Syncing ${unsynced.length} queued SOS...`);
+    // Syncing queued SOS
 
     for (const sos of unsynced) {
       try {
@@ -192,9 +191,9 @@ export const useOfflineSOS = () => {
           )
         );
 
-        console.log(`[OfflineSOS] Synced SOS: ${sos.id}`);
-      } catch (err) {
-        console.error(`[OfflineSOS] Failed to sync SOS ${sos.id}:`, err);
+        // SOS synced
+      } catch {
+        // Sync failed - will retry
       }
     }
 

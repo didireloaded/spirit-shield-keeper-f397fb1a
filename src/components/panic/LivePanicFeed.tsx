@@ -31,14 +31,14 @@ interface ActivePanic {
 async function reverseGeocode(lat: number, lng: number): Promise<string> {
   try {
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
-    if (!token) return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    if (!token) return "Location unavailable";
     const res = await fetch(
       `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${token}&limit=1&types=place,locality,neighborhood,address`
     );
     const data = await res.json();
-    return data.features?.[0]?.place_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    return data.features?.[0]?.place_name || "Location unavailable";
   } catch {
-    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    return "Location unavailable";
   }
 }
 

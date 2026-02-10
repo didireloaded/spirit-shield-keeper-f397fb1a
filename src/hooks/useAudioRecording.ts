@@ -41,9 +41,7 @@ export const useAudioRecording = () => {
       mediaRecorder.start(1000); // Collect data every second
       setIsRecording(true);
       
-      console.log("[Audio] Recording started");
-    } catch (err) {
-      console.error("[Audio] Failed to start recording:", err);
+    } catch {
       setError("Failed to access microphone. Please grant permission.");
     }
   }, []);
@@ -61,7 +59,7 @@ export const useAudioRecording = () => {
           type: mediaRecorderRef.current?.mimeType || "audio/webm" 
         });
         
-        console.log("[Audio] Recording stopped, blob size:", blob.size);
+        // Recording stopped
 
         // Stop all tracks
         mediaRecorderRef.current?.stream.getTracks().forEach((track) => track.stop());
@@ -77,7 +75,7 @@ export const useAudioRecording = () => {
           });
 
         if (uploadError) {
-          console.error("[Audio] Upload failed:", uploadError);
+          void uploadError;
           setError("Failed to upload audio evidence.");
           resolve(null);
         } else {
@@ -85,7 +83,7 @@ export const useAudioRecording = () => {
             .from("audio-evidence")
             .getPublicUrl(data.path);
           
-          console.log("[Audio] Uploaded successfully:", urlData.publicUrl);
+          // Upload successful
           setAudioUrl(urlData.publicUrl);
           resolve(urlData.publicUrl);
         }

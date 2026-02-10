@@ -133,7 +133,7 @@ const Index = () => {
       const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(fileName);
       return publicUrl;
     } catch (error) {
-      console.error('Image upload failed:', error);
+      void error;
       toast.error('Failed to upload image');
       return null;
     } finally {
