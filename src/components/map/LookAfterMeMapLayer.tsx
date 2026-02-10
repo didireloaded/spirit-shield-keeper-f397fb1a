@@ -158,13 +158,13 @@ export function LookAfterMeMapLayer({ map }: LookAfterMeMapLayerProps) {
 
         el.innerHTML = `
           <div class="relative flex flex-col items-center">
-            <div class="relative w-9 h-9 rounded-full border-2 ${isLate ? "border-yellow-500" : "border-blue-400"} shadow-lg overflow-hidden bg-card">
+            <div class="relative w-9 h-9 rounded-full border-2 ${isLate ? "border-amber-500" : "border-emerald-500"} shadow-lg overflow-hidden bg-card">
               ${tracked.avatar_url
                 ? `<img src="${tracked.avatar_url}" class="w-full h-full object-cover" />`
-                : `<div class="w-full h-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold">${(tracked.user_name || "U")[0]}</div>`
+                : `<div class="w-full h-full bg-emerald-600 flex items-center justify-center text-white text-sm font-bold">${(tracked.user_name || "U")[0]}</div>`
               }
             </div>
-            <div class="mt-0.5 px-1.5 py-0.5 rounded-full ${isLate ? "bg-yellow-500" : "bg-blue-500"} shadow-sm">
+            <div class="mt-0.5 px-1.5 py-0.5 rounded-full ${isLate ? "bg-amber-500" : "bg-emerald-600"} shadow-sm">
               <span class="text-[9px] font-bold text-white">${isLate ? "LATE" : "EN ROUTE"}</span>
             </div>
           </div>
@@ -175,7 +175,7 @@ export function LookAfterMeMapLayer({ map }: LookAfterMeMapLayerProps) {
             <div class="p-2 text-sm">
               <p class="font-semibold">${tracked.user_name}</p>
               <p class="text-xs opacity-70">→ ${tracked.destination}</p>
-              <p class="text-xs mt-1 ${isLate ? "text-yellow-600 font-medium" : "text-blue-600"}">
+              <p class="text-xs mt-1 ${isLate ? "text-amber-600 font-medium" : "text-emerald-600"}">
                 ${isLate ? "⚠ Running late" : "On the way"}
               </p>
             </div>

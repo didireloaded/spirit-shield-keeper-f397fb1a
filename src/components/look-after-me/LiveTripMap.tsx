@@ -68,7 +68,7 @@ export function LiveTripMap({ destination, expectedArrival }: LiveTripMapProps) 
 
     if (!userMarkerRef.current) {
       const el = document.createElement('div');
-      el.innerHTML = `<div class="w-8 h-8 rounded-full bg-blue-500 border-4 border-white shadow-lg flex items-center justify-center"><div class="w-2 h-2 rounded-full bg-white"></div></div>`;
+      el.innerHTML = `<div class="w-8 h-8 rounded-full bg-emerald-500 border-4 border-white shadow-lg flex items-center justify-center"><div class="w-2 h-2 rounded-full bg-white"></div></div>`;
 
       userMarkerRef.current = new mapboxgl.Marker({ element: el })
         .setLngLat([longitude, latitude])
