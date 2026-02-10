@@ -85,12 +85,32 @@ const getNotificationColor = (type: string, priority?: Priority) => {
 };
 
 const getNavigationPath = (notification: Notification): string | null => {
-  switch (notification.entity_type) {
+  // Use structured data if available (from dispatcher)
+  const data = notification.data as Record<string, unknown> | null;
+  if (data?.url && typeof data.url === "string") return data.url;
+
+  const relatedType = data?.relatedType as string | undefined;
+  const relatedId = notification.entity_id;
+
+  switch (relatedType || notification.entity_type) {
+    case "panic":
+    case "panic_session": {
+      let url = `/map?panic=${relatedId}`;
+      if (data?.lat && data?.lng) url += `&lat=${data.lat}&lng=${data.lng}&zoom=16`;
+      return url;
+    }
+    case "incident":
+    case "alert": {
+      let url = `/map?incident=${relatedId}`;
+      if (data?.lat && data?.lng) url += `&lat=${data.lat}&lng=${data.lng}&zoom=15`;
+      return url;
+    }
+    case "amber":
+      return `/amber-chat/${relatedId}`;
+    case "lookAfterMe":
+      return "/look-after-me";
     case "community_post":
       return "/community";
-    case "panic_session":
-    case "alert":
-      return `/map?alert=${notification.entity_id}`;
     case "watcher":
       return "/watchers";
     default:
