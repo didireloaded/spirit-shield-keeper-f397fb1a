@@ -1,16 +1,1 @@
-project_id = "pmhvmzupgzjeyeqsovkc"
-
-[functions.get-mapbox-token]
-verify_jwt = false
-
-[functions.send-incident-notification]
-verify_jwt = false
-
-[functions.panic-session]
-verify_jwt = false
-
-[functions.send-push-notification]
-verify_jwt = false
-
-[functions.open-emergency-api]
-verify_jwt = false
+project_id = "hpevmprnuwsrjlpmgcyy"
