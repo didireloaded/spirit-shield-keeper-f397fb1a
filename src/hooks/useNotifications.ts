@@ -87,8 +87,9 @@ export const useNotifications = () => {
             await triggerAlert(priority);
           }
 
-          // Show browser notification
-          if (permission === "granted") {
+          // Show browser notification via Notification API fallback
+          // (Service worker handles push when app is closed)
+          if (permission === "granted" && document.visibilityState === "visible") {
             showNotification({
               title: newNotification.title,
               body: newNotification.body,
