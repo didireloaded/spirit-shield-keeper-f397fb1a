@@ -326,7 +326,7 @@ const Map = () => {
         <SpeedCompass heading={heading} speed={speed} />
 
         {/* L3: Ghost Mode Toggle */}
-        <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] right-[var(--map-inset)] z-[var(--z-map-controls)]">
+        <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap)+44px+var(--map-element-gap))] right-[var(--map-inset)] z-[var(--z-map-controls)]">
           <GhostModeToggle isGhost={ghostMode} onChange={handleGhostToggle} />
         </div>
 
