@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { AlertTriangle, MapPin, Clock, ChevronRight } from "lucide-react";
+import { AlertTriangle, Search, MapPin, Clock, ChevronRight } from "lucide-react";
 
 export type AlertType = "panic" | "amber" | "robbery" | "suspicious" | "assault" | "accident" | "other" | "safe";
 
@@ -84,7 +84,7 @@ export const AlertCard = ({
 
       <div className="flex items-start gap-3">
         <div className={`p-2 rounded-lg ${style.icon}`}>
-          <AlertTriangle className="w-5 h-5" />
+          {type === "amber" ? <Search className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
         </div>
 
         <div className="flex-1 min-w-0">

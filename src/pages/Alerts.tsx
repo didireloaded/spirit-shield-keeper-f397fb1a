@@ -248,10 +248,11 @@ const Alerts = () => {
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full bg-card rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto"
+                className="w-full bg-card rounded-t-3xl flex flex-col max-h-[85vh]"
               >
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold">🟠 Amber Alert</h2>
+                {/* Header — fixed */}
+                <div className="flex items-center justify-between p-6 pb-3 shrink-0">
+                  <h2 className="text-xl font-bold text-warning">🟡 Amber Alert</h2>
                   <button
                     onClick={() => setShowAmberForm(false)}
                     className="p-2 rounded-full bg-secondary hover:bg-secondary/80"
@@ -260,7 +261,8 @@ const Alerts = () => {
                   </button>
                 </div>
 
-                <div className="space-y-4">
+                {/* Scrollable form body */}
+                <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
                   <div>
                     <label className="text-sm text-muted-foreground mb-1 block">Missing Person Name</label>
                     <input
@@ -311,7 +313,7 @@ const Alerts = () => {
                       className="w-full py-4 bg-secondary hover:bg-secondary/80 rounded-xl flex flex-col items-center justify-center gap-2 transition-colors border-2 border-dashed border-border"
                     >
                       {photoUploading ? (
-                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <div className="w-6 h-6 border-2 border-warning border-t-transparent rounded-full animate-spin" />
                       ) : (
                         <>
                           <Camera className="w-6 h-6 text-muted-foreground" />
@@ -365,13 +367,16 @@ const Alerts = () => {
                       />
                     </div>
                   </div>
+                </div>
 
+                {/* Sticky submit button — always visible */}
+                <div className="shrink-0 p-6 pt-3 border-t border-border bg-card">
                   <button
                     onClick={handleAmberSubmit}
                     disabled={!amberFormData.description}
-                    className="w-full py-4 bg-warning hover:bg-warning/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-warning-foreground transition-colors"
+                    className="w-full py-4 bg-warning hover:bg-warning/90 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-warning-foreground transition-colors text-base"
                   >
-                    🚨 Broadcast Amber Alert
+                    🟡 Broadcast Amber Alert
                   </button>
                 </div>
               </motion.div>
