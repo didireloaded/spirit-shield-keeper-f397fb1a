@@ -11,6 +11,8 @@ import { NetworkStatus } from "@/components/NetworkStatus";
 import { ErrorBoundary } from "@/core/providers/ErrorBoundary";
 import { NotificationOnboarding } from "@/components/notifications/NotificationOnboarding";
 import { useNotificationOnboarding } from "@/hooks/useNotificationOnboarding";
+import { useNotificationDispatcher } from "@/hooks/useNotificationDispatcher";
+import { useNotificationNavigation } from "@/hooks/useNotificationNavigation";
 import { TIME } from "@/core/config/constants";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -46,6 +48,13 @@ function NotificationOnboardingWrapper() {
 
 function AnimatedRoutes() {
   const location = useLocation();
+
+  // Central notification dispatcher — listens to ALL streams, applies rules, dispatches
+  useNotificationDispatcher();
+
+  // Service worker tap → in-app navigation
+  useNotificationNavigation();
+
   return (
     <>
       <NotificationOnboardingWrapper />
