@@ -153,14 +153,12 @@ async function handleStartPanic(
     if (subscriptions) {
       for (const sub of subscriptions) {
         try {
-          // Log the alert
           await supabase.from("panic_alerts").insert({
             panic_session_id: session.id,
             alert_type: "watcher",
             recipient_id: sub.user_id,
             delivery_status: "sent",
           });
-
           console.log(`[Panic Session] Alert sent to watcher: ${sub.user_id}`);
         } catch (err: unknown) {
           const errMessage = err instanceof Error ? err.message : "Unknown error";
@@ -190,9 +188,11 @@ async function handleStartPanic(
         lng: initialLng,
       },
     }));
-
     await supabase.from("notifications").insert(notifications);
   }
+
+  // ── BROADCAST TO ALL NEARBY USERS (5km radius) ──
+  await broadcastToNearbyUsers(supabase, session.id, userId, profile?.full_name || "A user", initialLat, initialLng);
 
   // Send SMS and Email alerts to watchers
   await sendEmergencyAlerts(
@@ -204,6 +204,19 @@ async function handleStartPanic(
     initialLng,
     watchers || []
   );
+
+  // Also create a broadcast record for map visibility
+  await supabase.from("panic_alerts_broadcast").insert({
+    user_id: userId,
+    panic_session_id: session.id,
+    alert_type: "panic",
+    latitude: initialLat,
+    longitude: initialLng,
+    status: "active",
+  }).then(({ error: bErr }: any) => {
+    if (bErr) console.error("[Panic Session] Broadcast record error:", bErr.message);
+    else console.log("[Panic Session] Broadcast record created");
+  });
 
   return new Response(
     JSON.stringify({
@@ -482,5 +495,92 @@ async function sendEmergencyAlerts(
         }
       }
     }
+  }
+}
+
+// ── Broadcast panic alert to ALL nearby users within 5km ──
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function broadcastToNearbyUsers(
+  supabase: any,
+  panicSessionId: string,
+  triggerUserId: string,
+  userName: string,
+  lat: number,
+  lng: number,
+) {
+  try {
+    // Fetch all user locations (excluding the person who triggered)
+    const { data: allLocations, error } = await supabase
+      .from("user_locations")
+      .select("user_id, latitude, longitude")
+      .neq("user_id", triggerUserId);
+
+    if (error || !allLocations) {
+      console.error("[Broadcast] Failed to fetch user locations:", error?.message);
+      return;
+    }
+
+    // Filter to users within 5km
+    const nearbyUsers = allLocations.filter((u: any) => {
+      const dist = haversineDistance(lat, lng, u.latitude, u.longitude);
+      return dist <= 5;
+    });
+
+    console.log(`[Broadcast] ${nearbyUsers.length} users within 5km of panic`);
+
+    if (nearbyUsers.length === 0) return;
+
+    const nearbyUserIds = nearbyUsers.map((u: any) => u.user_id);
+
+    // Create high-priority in-app notifications for all nearby users
+    const notifications = nearbyUsers.map((u: any) => {
+      const dist = haversineDistance(lat, lng, u.latitude, u.longitude);
+      return {
+        user_id: u.user_id,
+        type: "panic_broadcast",
+        title: "🚨 PANIC ALERT NEARBY",
+        body: `${userName} triggered a panic alert ${dist < 1 ? Math.round(dist * 1000) + "m" : dist.toFixed(1) + "km"} from you.`,
+        data: {
+          panicSessionId,
+          lat,
+          lng,
+          distance: Number(dist.toFixed(2)),
+        },
+        priority: "high",
+      };
+    });
+
+    const { error: insertErr } = await supabase.from("notifications").insert(notifications);
+    if (insertErr) {
+      console.error("[Broadcast] Failed to insert notifications:", insertErr.message);
+    } else {
+      console.log(`[Broadcast] Created ${notifications.length} nearby-user notifications`);
+    }
+
+    // Log broadcast alerts for audit trail
+    const broadcastAlerts = nearbyUserIds.map((uid: string) => ({
+      panic_session_id: panicSessionId,
+      alert_type: "broadcast",
+      recipient_id: uid,
+      delivery_status: "sent",
+    }));
+
+    await supabase.from("panic_alerts").insert(broadcastAlerts).then(({ error: bErr }: any) => {
+      if (bErr) console.error("[Broadcast] Alert log error:", bErr.message);
+    });
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("[Broadcast] Error:", msg);
   }
 }
