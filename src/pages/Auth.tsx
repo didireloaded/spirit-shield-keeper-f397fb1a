@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Shield, Mail, Lock, User, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Shield, Mail, Lock, User, Eye, EyeOff, AlertCircle, Camera, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -16,6 +17,9 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -26,11 +30,32 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const uploadAvatar = async (userId: string) => {
+    if (!avatarFile) return;
+    try {
+      const path = `${userId}.jpg`;
+      await supabase.storage.from("profile-photos").upload(path, avatarFile, { upsert: true });
+      const { data } = supabase.storage.from("profile-photos").getPublicUrl(path);
+      const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+      await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", userId);
+    } catch (err) {
+      console.error("Avatar upload failed:", err);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Validate inputs
     try {
       emailSchema.parse(email);
       passwordSchema.parse(password);
@@ -60,6 +85,12 @@ const Auth = () => {
             setError("This email is already registered. Please sign in instead.");
           } else {
             setError(error.message);
+          }
+        } else if (avatarFile) {
+          // After successful signup, get the user and upload avatar
+          const { data: { user: newUser } } = await supabase.auth.getUser();
+          if (newUser) {
+            await uploadAvatar(newUser.id);
           }
         }
       }
@@ -119,16 +150,52 @@ const Auth = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-secondary rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
+              <>
+                {/* Avatar Upload */}
+                <div className="flex flex-col items-center gap-2">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    ref={avatarInputRef}
+                    onChange={handleAvatarSelect}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="relative w-20 h-20 rounded-full bg-secondary border-2 border-dashed border-muted-foreground/30 flex items-center justify-center overflow-hidden hover:border-primary/50 transition-colors group"
+                  >
+                    {avatarPreview ? (
+                      <img src={avatarPreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                    )}
+                  </button>
+                  {avatarPreview ? (
+                    <button
+                      type="button"
+                      onClick={() => { setAvatarFile(null); setAvatarPreview(null); }}
+                      className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" /> Remove photo
+                    </button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Add a profile photo (optional)</p>
+                  )}
+                </div>
+
+                {/* Full Name */}
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-secondary rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+              </>
             )}
 
             <div className="relative">
@@ -169,8 +236,9 @@ const Auth = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 gradient-guardian text-primary-foreground font-semibold rounded-xl shadow-guardian hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="w-full py-3 gradient-guardian text-primary-foreground font-semibold rounded-xl shadow-guardian hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
             </button>
           </form>
@@ -182,6 +250,8 @@ const Auth = () => {
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setError("");
+                  setAvatarFile(null);
+                  setAvatarPreview(null);
                 }}
                 className="ml-1 text-primary font-medium hover:underline"
               >

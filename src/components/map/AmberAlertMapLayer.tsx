@@ -1,7 +1,7 @@
 /**
  * Amber Alert Map Layer
- * Shows missing person alerts as calm, amber/yellow map markers
- * with informational popups. No pulsing, no urgency, no banners.
+ * Shows missing person alerts as amber map markers with photo avatars
+ * Calm, informational — no pulsing, no banners
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -16,7 +16,6 @@ interface AmberMapAlert {
   description: string | null;
   created_at: string;
   user_id: string;
-  // Joined amber_alerts data
   missing_name?: string;
   last_seen_place?: string;
   last_seen_time?: string;
@@ -28,14 +27,16 @@ interface AmberAlertMapLayerProps {
   map: mapboxgl.Map | null;
 }
 
+function getInitial(name?: string): string {
+  return (name || "?")[0].toUpperCase();
+}
+
 export function AmberAlertMapLayer({ map }: AmberAlertMapLayerProps) {
   const [amberAlerts, setAmberAlerts] = useState<AmberMapAlert[]>([]);
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
 
-  // Fetch active amber alerts
   useEffect(() => {
     const fetchAmberAlerts = async () => {
-      // Fetch alerts of type amber
       const { data: alerts } = await supabase
         .from("alerts")
         .select("id, latitude, longitude, description, created_at, user_id")
@@ -49,7 +50,6 @@ export function AmberAlertMapLayer({ map }: AmberAlertMapLayerProps) {
         return;
       }
 
-      // Fetch amber_alerts details for enrichment
       const userIds = [...new Set(alerts.map((a) => a.user_id))];
       const { data: amberDetails } = await supabase
         .from("amber_alerts")
@@ -57,9 +57,7 @@ export function AmberAlertMapLayer({ map }: AmberAlertMapLayerProps) {
         .in("created_by", userIds)
         .eq("status", "active");
 
-      const detailMap = new Map(
-        amberDetails?.map((d) => [d.created_by, d]) || []
-      );
+      const detailMap = new Map(amberDetails?.map((d) => [d.created_by, d]) || []);
 
       setAmberAlerts(
         alerts.map((a) => {
@@ -80,30 +78,18 @@ export function AmberAlertMapLayer({ map }: AmberAlertMapLayerProps) {
 
     const channel = supabase
       .channel("amber-alerts-map")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "alerts", filter: "type=eq.amber" },
-        () => fetchAmberAlerts()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "amber_alerts" },
-        () => fetchAmberAlerts()
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "alerts", filter: "type=eq.amber" }, () => fetchAmberAlerts())
+      .on("postgres_changes", { event: "*", schema: "public", table: "amber_alerts" }, () => fetchAmberAlerts())
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Render markers
   useEffect(() => {
     if (!map) return;
 
     const currentMarkers = markersRef.current;
 
-    // Remove stale markers
     currentMarkers.forEach((marker, id) => {
       if (!amberAlerts.find((a) => a.id === id)) {
         marker.remove();
@@ -111,7 +97,6 @@ export function AmberAlertMapLayer({ map }: AmberAlertMapLayerProps) {
       }
     });
 
-    // Add/update amber markers
     amberAlerts.forEach((alert) => {
       let marker = currentMarkers.get(alert.id);
 
@@ -120,12 +105,18 @@ export function AmberAlertMapLayer({ map }: AmberAlertMapLayerProps) {
         el.className = "amber-alert-marker";
         el.style.cursor = "pointer";
 
+        const name = alert.missing_name || "Unknown";
+
+        // Avatar-based marker with amber ring
+        const avatarContent = alert.photo_url
+          ? `<img src="${alert.photo_url}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+             <div class="w-full h-full bg-amber-600 items-center justify-center text-white text-sm font-bold" style="display:none">${getInitial(name)}</div>`
+          : `<div class="w-full h-full bg-amber-600 flex items-center justify-center text-white text-sm font-bold">${getInitial(name)}</div>`;
+
         el.innerHTML = `
           <div class="relative flex flex-col items-center">
-            <div class="relative w-8 h-8 rounded-full bg-amber-500 border-2 border-amber-300 shadow-md flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-              </svg>
+            <div class="relative w-10 h-10 rounded-full border-[3px] border-amber-400 shadow-lg overflow-hidden bg-neutral-900">
+              ${avatarContent}
             </div>
             <div class="mt-0.5 px-1.5 py-px rounded-full bg-amber-500/90 shadow-sm">
               <span class="text-[8px] font-semibold text-white uppercase tracking-wider">MISSING</span>
@@ -134,31 +125,35 @@ export function AmberAlertMapLayer({ map }: AmberAlertMapLayerProps) {
         `;
 
         const timeAgo = formatDistanceToNow(new Date(alert.created_at), { addSuffix: true });
-        const name = alert.missing_name || "Unknown Person";
         const lastSeen = alert.last_seen_place || "Unknown location";
         const lastSeenTime = alert.last_seen_time || timeAgo;
         const age = alert.missing_age ? `, Age ${alert.missing_age}` : "";
-        const photoHtml = alert.photo_url
-          ? `<img src="${alert.photo_url}" style="width:100%;height:60px;object-fit:cover;border-radius:6px;margin-bottom:6px" />`
-          : "";
 
-        const popup = new mapboxgl.Popup({
-          offset: 25,
-          closeButton: true,
-          maxWidth: "240px",
-          className: "amber-popup",
-        }).setHTML(`
-          <div style="padding:10px;font-family:system-ui;background:#fffbeb;border-radius:10px;border:1px solid #f59e0b">
-            ${photoHtml}
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        // Dark popup matching panic style
+        const popupContent = document.createElement("div");
+        popupContent.innerHTML = `
+          <div style="
+            background:#141414;border-radius:12px;padding:12px 14px;min-width:200px;
+            box-shadow:0 8px 32px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.06);
+          ">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               <span style="background:#f59e0b;color:white;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;text-transform:uppercase">Amber Alert</span>
             </div>
-            <p style="font-weight:600;font-size:13px;color:#92400e;margin:0 0 4px">${name}${age}</p>
-            <p style="font-size:11px;color:#78350f;margin:0 0 2px;opacity:0.8">📍 Last seen: ${lastSeen}</p>
-            <p style="font-size:10px;color:#78350f;margin:0;opacity:0.6">🕐 ${lastSeenTime}</p>
-            ${alert.description ? `<p style="font-size:10px;color:#78350f;margin:6px 0 0;opacity:0.7;line-height:1.3">${alert.description}</p>` : ""}
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              ${alert.photo_url ? `<img src="${alert.photo_url}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid #f59e0b" />` : `<div style="width:28px;height:28px;border-radius:50%;background:#d97706;display:flex;align-items:center;justify-content:center;font-size:12px;color:white;font-weight:600">${getInitial(name)}</div>`}
+              <div>
+                <p style="font-size:13px;color:#e5e5e5;font-weight:600;margin:0">${name}${age}</p>
+              </div>
+            </div>
+            <p style="font-size:11px;color:#a3a3a3;margin:0 0 2px">📍 Last seen: ${lastSeen}</p>
+            <p style="font-size:10px;color:#737373;margin:0">🕐 ${lastSeenTime}</p>
+            ${alert.description ? `<p style="font-size:10px;color:#737373;margin:6px 0 0;line-height:1.3">${alert.description}</p>` : ""}
           </div>
-        `);
+        `;
+
+        const popup = new mapboxgl.Popup({
+          offset: 25, closeButton: false, className: "amber-popup", maxWidth: "240px",
+        }).setDOMContent(popupContent);
 
         marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
           .setLngLat([alert.longitude, alert.latitude])
@@ -172,7 +167,7 @@ export function AmberAlertMapLayer({ map }: AmberAlertMapLayerProps) {
     });
 
     return () => {
-      currentMarkers.forEach((marker) => marker.remove());
+      currentMarkers.forEach((m) => m.remove());
       currentMarkers.clear();
     };
   }, [map, amberAlerts]);

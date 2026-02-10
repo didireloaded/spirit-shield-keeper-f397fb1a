@@ -16,6 +16,7 @@ interface PanicDetailSheetProps {
   panic: {
     id: string;
     user_name?: string;
+    avatar_url?: string | null;
     status: string;
     incident_type?: string | null;
     location_name?: string | null;
@@ -60,8 +61,12 @@ export function PanicDetailSheet({ open, onClose, panic }: PanicDetailSheetProps
         <div className="space-y-4 pt-4">
           {/* User */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-neutral-800 flex items-center justify-center">
-              <User className="w-4 h-4 text-neutral-400" />
+            <div className="w-10 h-10 rounded-full border-2 border-red-500/40 overflow-hidden bg-neutral-800 flex items-center justify-center">
+              {panic.avatar_url ? (
+                <img src={panic.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-4 h-4 text-neutral-400" />
+              )}
             </div>
             <div>
               <p className="text-sm font-medium text-neutral-200">{panic.user_name || "User"}</p>

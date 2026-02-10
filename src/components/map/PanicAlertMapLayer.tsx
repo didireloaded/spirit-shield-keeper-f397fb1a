@@ -1,7 +1,7 @@
 /**
  * Panic Alert Map Layer
- * Real-time GPS tracking with movement path visualization
- * Shows live/ended status and persists last known location
+ * Real-time GPS tracking with avatar-based markers
+ * Shows live/ended status with red ring + user photo
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -22,12 +22,17 @@ interface PanicAlert {
   created_at: string;
   ended_at?: string | null;
   user_name?: string;
+  avatar_url?: string | null;
   chat_room_id?: string | null;
 }
 
 interface PanicAlertMapLayerProps {
   map: mapboxgl.Map | null;
   currentUserId?: string;
+}
+
+function getInitial(name?: string): string {
+  return (name || "U")[0].toUpperCase();
 }
 
 export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerProps) {
@@ -38,7 +43,6 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
   const popupsRef = useRef<Map<string, mapboxgl.Popup>>(new Map());
   const trailsRef = useRef<Map<string, [number, number][]>>(new Map());
 
-  // Fetch active panic sessions
   useEffect(() => {
     const fetchActivePanics = async () => {
       const { data } = await supabase
@@ -57,15 +61,16 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
         const userIds = [...new Set(data.map((d) => d.user_id))];
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, full_name")
+          .select("id, full_name, avatar_url")
           .in("id", userIds);
 
-        const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || []);
+        const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
         setActivePanics(
           data.map((d) => ({
             ...d,
-            user_name: profileMap.get(d.user_id) || "User",
+            user_name: profileMap.get(d.user_id)?.full_name || "User",
+            avatar_url: profileMap.get(d.user_id)?.avatar_url || null,
           }))
         );
       }
@@ -75,50 +80,35 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
 
     const channel = supabase
       .channel("panic-sessions-map")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "panic_sessions" },
-        () => fetchActivePanics()
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "panic_location_logs" },
-        (payload) => {
-          const log = payload.new as any;
-          const existing = trailsRef.current.get(log.panic_session_id) || [];
-          existing.push([log.lng, log.lat]);
-          trailsRef.current.set(log.panic_session_id, existing);
-          updateMarkerPosition(log.panic_session_id, log.lat, log.lng);
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "panic_sessions" }, () => fetchActivePanics())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "panic_location_logs" }, (payload) => {
+        const log = payload.new as any;
+        const existing = trailsRef.current.get(log.panic_session_id) || [];
+        existing.push([log.lng, log.lat]);
+        trailsRef.current.set(log.panic_session_id, existing);
+        updateMarkerPosition(log.panic_session_id, log.lat, log.lng);
+      })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const updateMarkerPosition = (sessionId: string, lat: number, lng: number) => {
     const marker = markersRef.current.get(sessionId);
-    if (marker) {
-      marker.setLngLat([lng, lat]);
-    }
+    if (marker) marker.setLngLat([lng, lat]);
   };
 
   const handleViewDetails = useCallback((panic: PanicAlert) => {
-    // Close any open popups
     popupsRef.current.forEach((p) => p.remove());
     setSelectedPanic(panic);
     setDetailOpen(true);
   }, []);
 
-  // Render markers on map
   useEffect(() => {
     if (!map) return;
 
     const currentMarkers = markersRef.current;
 
-    // Remove stale markers
     currentMarkers.forEach((marker, id) => {
       if (!activePanics.find((p) => p.id === id)) {
         marker.remove();
@@ -128,7 +118,6 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
       }
     });
 
-    // Add/update panic markers
     activePanics.forEach((panic) => {
       let marker = currentMarkers.get(panic.id);
       const isLive = panic.status === "active";
@@ -140,14 +129,20 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
         el.className = "panic-alert-marker";
         el.style.cursor = "pointer";
 
+        // Avatar-based marker with red status ring
+        const avatarContent = panic.avatar_url
+          ? `<img src="${panic.avatar_url}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+             <div class="w-full h-full bg-red-600 items-center justify-center text-white text-sm font-bold" style="display:none">${getInitial(panic.user_name)}</div>`
+          : `<div class="w-full h-full bg-red-600 flex items-center justify-center text-white text-sm font-bold">${getInitial(panic.user_name)}</div>`;
+
         el.innerHTML = `
           <div class="relative flex flex-col items-center">
             ${isLive ? `
               <div class="absolute -inset-3 rounded-full bg-red-500/20 animate-ping" style="animation-duration:2s"></div>
               <div class="absolute -inset-1.5 rounded-full bg-red-500/10"></div>
             ` : ""}
-            <div class="relative w-7 h-7 rounded-full ${isLive ? "bg-neutral-900" : "bg-neutral-600"} border border-red-500/60 shadow-md flex items-center justify-center">
-              <span class="text-red-400 text-xs">●</span>
+            <div class="relative w-10 h-10 rounded-full border-[3px] ${isLive ? "border-red-500" : "border-red-400/50"} shadow-lg overflow-hidden bg-neutral-900">
+              ${avatarContent}
             </div>
             <div class="mt-0.5 px-1.5 py-px rounded-full ${isLive ? "bg-neutral-900/90 border border-red-500/40" : "bg-neutral-700/80"} shadow-sm">
               <span class="text-[9px] font-semibold ${isLive ? "text-red-400" : "text-neutral-400"} uppercase tracking-wider">${isLive ? "LIVE" : "Ended"}</span>
@@ -155,51 +150,37 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
           </div>
         `;
 
-        // New dark popup card — no tail, no white border
+        // Dark popup card
         const popupContent = document.createElement("div");
         popupContent.innerHTML = `
-          <div class="panic-info-card" style="
-            background: #141414;
-            border-radius: 12px;
-            padding: 12px 14px;
-            min-width: 200px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.06);
+          <div style="
+            background:#141414;border-radius:12px;padding:12px 14px;min-width:200px;
+            box-shadow:0 8px 32px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.06);
           ">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
               ${isLive ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef4444"></span>` : ""}
               <span style="font-size:11px;font-weight:600;color:${isLive ? '#f87171' : '#a3a3a3'};letter-spacing:0.02em">${panic.incident_type || "Panic Alert"}</span>
             </div>
-            <p style="font-size:13px;color:#e5e5e5;font-weight:500;margin:0 0 4px 0">${panic.user_name}</p>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              ${panic.avatar_url ? `<img src="${panic.avatar_url}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid rgba(239,68,68,0.3)" />` : `<div style="width:24px;height:24px;border-radius:50%;background:#dc2626;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:600">${getInitial(panic.user_name)}</div>`}
+              <span style="font-size:13px;color:#e5e5e5;font-weight:500">${panic.user_name}</span>
+            </div>
             <p style="font-size:11px;color:#737373;margin:0">${panic.location_name || "Tracking location"}</p>
             <div style="margin-top:10px;display:flex;gap:6px">
               <button class="panic-popup-details-btn" style="
-                flex:1;
-                padding:6px 0;
-                border-radius:8px;
-                background:rgba(239,68,68,0.12);
-                border:1px solid rgba(239,68,68,0.2);
-                color:#fca5a5;
-                font-size:11px;
-                font-weight:500;
-                cursor:pointer;
-                transition:background 0.15s;
+                flex:1;padding:6px 0;border-radius:8px;background:rgba(239,68,68,0.12);
+                border:1px solid rgba(239,68,68,0.2);color:#fca5a5;font-size:11px;
+                font-weight:500;cursor:pointer;transition:background 0.15s;
               ">View details</button>
             </div>
           </div>
         `;
 
-        // Wire up the "View details" button
         const detailsBtn = popupContent.querySelector(".panic-popup-details-btn");
-        if (detailsBtn) {
-          detailsBtn.addEventListener("click", () => handleViewDetails(panic));
-        }
+        if (detailsBtn) detailsBtn.addEventListener("click", () => handleViewDetails(panic));
 
         const popup = new mapboxgl.Popup({
-          offset: 25,
-          closeButton: false,
-          className: "panic-popup-modern",
-          maxWidth: "240px",
+          offset: 25, closeButton: false, className: "panic-popup-modern", maxWidth: "240px",
         }).setDOMContent(popupContent);
 
         popupsRef.current.set(panic.id, popup);
@@ -216,7 +197,7 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
     });
 
     return () => {
-      currentMarkers.forEach((marker) => marker.remove());
+      currentMarkers.forEach((m) => m.remove());
       currentMarkers.clear();
       popupsRef.current.forEach((p) => p.remove());
       popupsRef.current.clear();
