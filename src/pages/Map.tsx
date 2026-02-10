@@ -23,7 +23,7 @@ import { ReportsBottomSheet } from "@/components/map/ReportsBottomSheet";
 import { ReportFab } from "@/components/map/ReportFab";
 import { IncidentReportModal } from "@/components/map/IncidentReportModal";
 import { CrosshairIndicator } from "@/components/map/CrosshairIndicator";
-import { ActiveTripBanner } from "@/components/map/ActiveTripBanner";
+// ActiveTripBanner removed — Look After Me is map-marker-only, no banner
 import { NearYouStrip } from "@/components/map/NearYouStrip";
 import { UserAvatarMarkers } from "@/components/map/UserAvatarMarkers";
 import { LiveLocationLabel } from "@/components/map/LiveLocationLabel";
@@ -304,8 +304,7 @@ const Map = () => {
         {/* ── L3: PRIMARY MAP CONTROLS (search, online pill, legend, back) ── */}
         <MapTopControls />
 
-        {/* ── L2: CRITICAL FLOATING ALERTS ── */}
-        <ActiveTripBanner className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] left-[var(--map-inset)] right-[var(--map-inset)] z-[var(--z-map-critical)]" />
+        {/* L2: Look After Me — no banner, map-only (see LookAfterMeMapLayer) */}
 
         {/* L3: Search Bar */}
         <MapSearchBar
