@@ -28,7 +28,7 @@ export function SpeedCompass({ heading = 0, speed = 0 }: SpeedCompassProps) {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
-          className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] right-[var(--map-inset)] z-20 bg-background/90 backdrop-blur-md rounded-2xl border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] p-3"
+          className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] right-[var(--map-inset)] z-[var(--z-map-feedback)] bg-background/90 backdrop-blur-md rounded-2xl border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] p-3"
         >
           <div className="flex items-center gap-3">
             <div className="relative w-10 h-10">

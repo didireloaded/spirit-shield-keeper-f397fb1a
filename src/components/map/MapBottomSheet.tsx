@@ -135,7 +135,7 @@ export function MapBottomSheet({
             y: dragY,
           }}
           className="
-            fixed bottom-20 left-0 right-0 z-40
+            fixed bottom-20 left-0 right-0 z-[var(--z-map-buttons)]
             bg-card border-t border-border
             rounded-t-3xl shadow-2xl
             overflow-hidden

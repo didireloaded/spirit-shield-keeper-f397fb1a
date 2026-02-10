@@ -35,7 +35,7 @@ export function MapLegend() {
           haptics.light();
           setIsOpen(!isOpen);
         }}
-        className="fixed top-[var(--map-top-row)] right-[var(--map-inset)] z-20 w-10 h-10 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] flex items-center justify-center text-foreground hover:bg-background transition-colors"
+        className="fixed top-[var(--map-top-row)] right-[var(--map-inset)] z-[var(--z-map-controls)] w-10 h-10 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] flex items-center justify-center text-foreground hover:bg-background transition-colors"
         aria-label="Toggle map legend"
       >
         <Info className="w-5 h-5" />
@@ -50,7 +50,7 @@ export function MapLegend() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+              className="fixed inset-0 bg-black/50 z-[var(--z-modal-backdrop)] backdrop-blur-sm"
             />
 
             <motion.div
@@ -58,7 +58,7 @@ export function MapLegend() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 100 }}
               transition={{ type: "spring", damping: 25 }}
-              className="fixed right-4 top-20 z-50 w-72 bg-background rounded-2xl border border-border shadow-2xl overflow-hidden"
+              className="fixed right-4 top-20 z-[var(--z-modal)] w-72 bg-background rounded-2xl border border-border shadow-2xl overflow-hidden"
             >
               <div className="flex items-center justify-between p-4 border-b border-border">
                 <h3 className="font-semibold text-foreground">Map Legend</h3>

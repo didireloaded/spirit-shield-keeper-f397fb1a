@@ -59,7 +59,7 @@ export function MapControls({
   );
 
   return (
-    <div className={`fixed bottom-[calc(var(--map-bottom-safe)+56px)] left-[var(--map-inset)] z-20 flex flex-col gap-2.5 ${className}`}>
+    <div className={`fixed bottom-[calc(var(--map-bottom-safe)+56px)] left-[var(--map-inset)] z-[var(--z-map-buttons)] flex flex-col gap-2.5 ${className}`}>
       {onZoomIn && (
         <ControlButton onClick={onZoomIn} label="Zoom in">
           <Plus className="w-5 h-5" />

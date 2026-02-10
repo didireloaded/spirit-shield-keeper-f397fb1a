@@ -31,7 +31,7 @@ export function QuickActionsMenu({
   ];
 
   return (
-    <div className="fixed bottom-[calc(var(--map-bottom-safe)+56px)] right-[calc(var(--map-inset)+4px)] z-30">
+    <div className="fixed bottom-[calc(var(--map-bottom-safe)+56px)] right-[calc(var(--map-inset)+4px)] z-[var(--z-map-buttons)]">
       <AnimatePresence>
         {isOpen && (
           <motion.div

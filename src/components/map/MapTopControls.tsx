@@ -29,7 +29,7 @@
    };
  
    return (
-     <div className="fixed top-[var(--map-top-row)] left-[var(--map-inset)] right-[var(--map-inset)] z-20 flex justify-between pointer-events-none">
+     <div className="fixed top-[var(--map-top-row)] left-[var(--map-inset)] right-[var(--map-inset)] z-[var(--z-map-controls)] flex justify-between pointer-events-none">
        {/* Back button */}
        <motion.button
          whileTap={{ scale: 0.95 }}
