@@ -149,7 +149,7 @@ export function MapSearchBar({
   };
 
   return (
-    <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-20 ${className}`}>
+    <div className={`fixed top-[var(--map-top-row)] left-1/2 -translate-x-1/2 z-20 ${className}`}>
       <AnimatePresence mode="wait">
         {!isExpanded ? (
           /* ── Collapsed Pill (Dynamic Island style) ── */
@@ -163,7 +163,7 @@ export function MapSearchBar({
               haptics.light();
               setIsExpanded(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-background/90 backdrop-blur-md border border-border/50 shadow-lg"
+            className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-background/90 backdrop-blur-md border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)]"
           >
             <Search className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Search</span>
@@ -187,7 +187,7 @@ export function MapSearchBar({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search places or incidents..."
-                className="w-full h-9 pl-9 pr-9 rounded-full bg-background/95 backdrop-blur-md border border-border/50 shadow-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
+                className="w-full h-8 pl-9 pr-9 rounded-full bg-background/95 backdrop-blur-md border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm"
               />
               <button
                 onClick={handleClose}
