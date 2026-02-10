@@ -1,0 +1,19 @@
+{
+  "name": "The Guardian - Community Safety",
+  "short_name": "Guardian",
+  "description": "Real-time community-driven emergency safety app for Namibia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#1a365d",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["safety", "social", "utilities"]
+}

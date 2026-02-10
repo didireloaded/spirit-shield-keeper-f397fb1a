@@ -5,23 +5,15 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, AlertTriangle, Car, User, Skull, HelpCircle, MapPin, Check } from "lucide-react";
+import { X, AlertTriangle, MapPin, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { IncidentTypePicker } from "@/components/map/IncidentTypePicker";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRateLimit } from "@/hooks/useRateLimit";
 
 type MarkerType = "robbery" | "accident" | "suspicious" | "assault" | "kidnapping" | "other";
-
-const markerTypeConfig: Record<MarkerType, { label: string; icon: any; color: string }> = {
-  robbery: { label: "Robbery", icon: AlertTriangle, color: "bg-destructive" },
-  accident: { label: "Accident", icon: Car, color: "bg-warning" },
-  suspicious: { label: "Suspicious", icon: User, color: "bg-accent" },
-  assault: { label: "Assault", icon: AlertTriangle, color: "bg-destructive" },
-  kidnapping: { label: "Kidnapping", icon: Skull, color: "bg-destructive" },
-  other: { label: "Other", icon: HelpCircle, color: "bg-muted" },
-};
 
 interface IncidentReportModalProps {
   visible: boolean;
@@ -153,46 +145,11 @@ export function IncidentReportModal({
                 </div>
               </div>
 
-              {/* Incident Type */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  Incident Type <span className="text-destructive">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(Object.keys(markerTypeConfig) as MarkerType[]).map((type) => {
-                    const config = markerTypeConfig[type];
-                    const Icon = config.icon;
-                    const isSelected = selectedType === type;
-                    return (
-                      <motion.button
-                        key={type}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => setSelectedType(type)}
-                        className={`px-4 py-3 rounded-xl border-2 transition-all text-left ${
-                          isSelected
-                            ? "border-primary bg-primary/10"
-                            : "border-border bg-secondary/30 hover:border-muted-foreground/30"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center ${config.color}`}
-                          >
-                            <Icon className="w-4 h-4 text-white" />
-                          </div>
-                          <span
-                            className={`text-sm font-medium ${
-                              isSelected ? "text-primary" : "text-foreground"
-                            }`}
-                          >
-                            {config.label}
-                          </span>
-                        </div>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Incident Type - Uses DB-driven picker with fallback */}
+              <IncidentTypePicker
+                selectedType={selectedType}
+                onSelect={(type) => setSelectedType(type as MarkerType)}
+              />
 
               {/* Description */}
               <div className="space-y-2">
