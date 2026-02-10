@@ -95,7 +95,7 @@ export default function Community() {
       <CommunityTopBar />
 
       {/* Filter bar — sticky below top bar */}
-      <div className="sticky top-[65px] z-30 bg-background/95 backdrop-blur-md border-b border-border">
+      <div className="sticky top-[57px] z-30 bg-background/95 backdrop-blur-md border-b border-border">
         <CommunityFilterBar value={filter} onChange={setFilter} counts={counts} />
       </div>
 
