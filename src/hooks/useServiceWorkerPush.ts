@@ -32,30 +32,8 @@ export function useServiceWorkerPush() {
       .catch((err) => console.error("[SW] Registration failed:", err));
   }, []);
 
-  // Listen for service worker messages (OPEN_CONTEXT)
-  useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-
-    const handler = (event: MessageEvent) => {
-      if (event.data?.type === "OPEN_CONTEXT") {
-        const { relatedType, relatedId } = event.data;
-        if (relatedType === "panic") {
-          window.location.href = `/map?panic=${relatedId}`;
-        } else if (relatedType === "incident") {
-          window.location.href = `/map?incident=${relatedId}`;
-        } else if (relatedType === "amber") {
-          window.location.href = `/amber-chat/${relatedId}`;
-        } else if (relatedType === "lookAfterMe") {
-          window.location.href = "/look-after-me";
-        } else {
-          window.location.href = "/alerts";
-        }
-      }
-    };
-
-    navigator.serviceWorker.addEventListener("message", handler);
-    return () => navigator.serviceWorker.removeEventListener("message", handler);
-  }, []);
+  // Navigation from SW taps is handled by useNotificationNavigation (NOTIFICATION_TAP)
+  // No duplicate handler needed here.
 
   // Request permission and subscribe
   const requestPermission = useCallback(async (): Promise<boolean> => {

@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.panic-session]
 verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
+
+[functions.open-emergency-api]
+verify_jwt = false
