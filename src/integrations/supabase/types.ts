@@ -1190,8 +1190,10 @@ export type Database = {
       notification_settings: {
         Row: {
           created_at: string | null
+          group_notifications: boolean | null
           id: string
           panic_override: boolean | null
+          priority_filter: string | null
           push_enabled: boolean | null
           quiet_hours_enabled: boolean | null
           quiet_hours_end: string | null
@@ -1203,8 +1205,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          group_notifications?: boolean | null
           id?: string
           panic_override?: boolean | null
+          priority_filter?: string | null
           push_enabled?: boolean | null
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
@@ -1216,8 +1220,10 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          group_notifications?: boolean | null
           id?: string
           panic_override?: boolean | null
+          priority_filter?: string | null
           push_enabled?: boolean | null
           quiet_hours_enabled?: boolean | null
           quiet_hours_end?: string | null
@@ -2038,6 +2044,39 @@ export type Database = {
           id?: string
           user_id?: string
           window_start?: string | null
+        }
+        Relationships: []
+      }
+      user_safety_status: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          message: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          message?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          message?: string | null
+          status?: string
+          user_id?: string
         }
         Relationships: []
       }
