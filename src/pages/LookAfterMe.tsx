@@ -8,6 +8,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { DestinationAutocomplete } from "@/components/look-after-me/DestinationAutocomplete";
 import { ETADisplay } from "@/components/look-after-me/ETADisplay";
 import { LiveTripMap } from "@/components/look-after-me/LiveTripMap";
+import { ResolutionConfirmDialog } from "@/components/ResolutionConfirmDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -218,6 +219,8 @@ const LookAfterMe = () => {
     }
   };
 
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+
   const handleEndTrip = async () => {
     if (!activeSession) return;
 
@@ -228,7 +231,8 @@ const LookAfterMe = () => {
 
     if (!error) {
       setActiveSession(null);
-      toast.info("Trip ended");
+      setShowEndConfirm(false);
+      toast.success("Look After Me session ended.");
     }
   };
 
@@ -255,7 +259,7 @@ const LookAfterMe = () => {
         {/* Main Toggle Button */}
         <motion.button
           whileTap={{ scale: 0.98 }}
-          onClick={activeSession ? handleEndTrip : handleStartSession}
+          onClick={activeSession ? () => setShowEndConfirm(true) : handleStartSession}
           className={`w-full py-6 rounded-2xl font-bold text-lg transition-colors ${
             activeSession
               ? "bg-success text-success-foreground"
@@ -264,6 +268,14 @@ const LookAfterMe = () => {
         >
           {activeSession ? "✓ Trip Active - Tap to End" : "🫶 Activate Look After Me"}
         </motion.button>
+
+        {/* End Session Confirmation */}
+        <ResolutionConfirmDialog
+          open={showEndConfirm}
+          variant="lam"
+          onCancel={() => setShowEndConfirm(false)}
+          onConfirm={handleEndTrip}
+        />
 
         {activeSession ? (
           /* Active Trip View */

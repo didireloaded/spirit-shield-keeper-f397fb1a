@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { NetworkStatus } from "@/components/NetworkStatus";
 import { ErrorBoundary } from "@/core/providers/ErrorBoundary";
 import { NotificationOnboarding } from "@/components/notifications/NotificationOnboarding";
+import { AlertReminderPrompt } from "@/components/AlertReminderPrompt";
 import { useNotificationOnboarding } from "@/hooks/useNotificationOnboarding";
 import { useNotificationDispatcher } from "@/hooks/useNotificationDispatcher";
 import { useNotificationNavigation } from "@/hooks/useNotificationNavigation";
@@ -61,6 +62,7 @@ function AnimatedRoutes() {
   return (
     <>
       <NotificationOnboardingWrapper />
+      <AlertReminderPrompt />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/auth" element={<Auth />} />
