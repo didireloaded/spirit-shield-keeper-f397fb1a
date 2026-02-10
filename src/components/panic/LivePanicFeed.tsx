@@ -1,15 +1,14 @@
 /**
  * Live Panic Feed
- * Real-time feed of active panic sessions with location tracking
+ * Compact grid of active panic sessions
  */
 
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, MapPin, Navigation, Clock, Users, Shield } from "lucide-react";
+import { AlertTriangle, MapPin, Navigation, Users, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { listItemVariants } from "@/lib/animations";
 
 interface ActivePanic {
   id: string;
@@ -29,7 +28,6 @@ interface ActivePanic {
   profile?: { full_name: string | null; avatar_url: string | null } | null;
 }
 
-// Reverse geocode helper
 async function reverseGeocode(lat: number, lng: number): Promise<string> {
   try {
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -68,7 +66,6 @@ export function LivePanicFeed() {
       const panicData = data.map(p => ({ ...p, profile: profileMap.get(p.user_id) }));
       setPanics(panicData);
 
-      // Reverse geocode locations that don't have names
       for (const panic of panicData) {
         const key = panic.id;
         if (!locationNames[key]) {
@@ -111,135 +108,115 @@ export function LivePanicFeed() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center py-8">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (panics.length === 0) {
     return (
-      <div className="text-center py-12 bg-card rounded-xl">
-        <Shield className="w-16 h-16 text-success mx-auto mb-4" />
-        <p className="text-lg font-semibold">All Clear</p>
-        <p className="text-sm text-muted-foreground">No active emergency alerts</p>
+      <div className="text-center py-8 bg-card rounded-xl">
+        <Shield className="w-10 h-10 text-success mx-auto mb-2" />
+        <p className="text-sm font-semibold">All Clear</p>
+        <p className="text-xs text-muted-foreground">No active emergency alerts</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Active count banner */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-destructive/10 border-2 border-destructive/30 rounded-xl p-4"
-      >
-        <div className="flex items-center gap-3">
-          <motion.div
-            animate={{ scale: [1, 1.2, 1], rotate: [0, -10, 10, -10, 10, 0] }}
-            transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
-          >
-            <AlertTriangle className="w-6 h-6 text-destructive" />
-          </motion.div>
-          <div className="flex-1">
-            <p className="font-bold text-destructive text-lg">
-              {panics.length} Active Emergency Alert{panics.length !== 1 ? "s" : ""}
-            </p>
-            <p className="text-sm text-muted-foreground">Tap to view details</p>
-          </div>
-        </div>
-      </motion.div>
+    <div className="space-y-3">
+      {/* Active count */}
+      <div className="flex items-center gap-2 px-1">
+        <motion.div
+          animate={{ scale: [1, 1.15, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          <AlertTriangle className="w-4 h-4 text-destructive" />
+        </motion.div>
+        <span className="text-sm font-semibold text-destructive">
+          {panics.length} Active Alert{panics.length !== 1 ? "s" : ""}
+        </span>
+      </div>
 
-      {/* Alert cards */}
-      <AnimatePresence mode="popLayout">
-        {panics.map((panic) => {
-          const displayLocation = locationNames[panic.id] || panic.current_location_name || panic.location_name || "Fetching location...";
-          
-          return (
-            <motion.div
-              key={panic.id}
-              variants={listItemVariants}
-              initial="initial"
-              animate="animate"
-              exit={{ opacity: 0, x: 20 }}
-              layout
-              className="bg-card border-2 border-destructive/30 rounded-xl p-4 shadow-lg"
-            >
-              {/* Header */}
-              <div className="flex items-start gap-3 mb-3">
-                {panic.profile?.avatar_url ? (
-                  <img src={panic.profile.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-destructive" />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-destructive/20 flex items-center justify-center border-2 border-destructive">
-                    <AlertTriangle className="w-6 h-6 text-destructive" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="font-bold truncate">{panic.profile?.full_name || "User"}</p>
-                    <motion.span
-                      animate={{ opacity: [1, 0.5, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="px-2 py-0.5 bg-destructive text-destructive-foreground rounded-full text-xs font-bold uppercase"
-                    >
-                      LIVE
-                    </motion.span>
-                  </div>
-                  <p className="text-sm font-medium text-destructive">
-                    {panic.incident_type || panic.session_type || "Panic"}
-                  </p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                    <Clock className="w-3 h-3" />
-                    {formatDistanceToNow(new Date(panic.created_at), { addSuffix: true })}
-                  </p>
-                </div>
-              </div>
+      {/* Grid layout */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <AnimatePresence mode="popLayout">
+          {panics.map((panic) => {
+            const displayLocation = locationNames[panic.id] || panic.current_location_name || panic.location_name || "Locating...";
 
-              {/* Location */}
-              <div className="bg-secondary/50 rounded-lg p-3 mb-3">
-                <div className="flex items-start gap-2">
-                  <MapPin className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+            return (
+              <motion.div
+                key={panic.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                layout
+                className="bg-card border border-destructive/20 rounded-xl p-3 flex flex-col gap-2"
+              >
+                {/* Avatar + LIVE */}
+                <div className="flex items-center gap-2">
+                  {panic.profile?.avatar_url ? (
+                    <img src={panic.profile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover border border-destructive/40" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center">
+                      <AlertTriangle className="w-4 h-4 text-destructive" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">
-                      {panic.is_moving ? "Last seen at" : "Location"}
-                    </p>
-                    <p className="font-medium text-sm">
-                      {displayLocation}
-                    </p>
-                    {panic.is_moving && (
-                      <p className="text-xs text-primary mt-1 flex items-center gap-1">
-                        <Navigation className="w-3 h-3 animate-pulse" />
-                        Person is moving
-                      </p>
-                    )}
+                    <p className="text-xs font-semibold truncate">{panic.profile?.full_name || "User"}</p>
                   </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleViewOnMap(panic)}
-                  className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-1"
-                >
-                  <MapPin className="w-4 h-4" />
-                  View on Map
-                </button>
-                {panic.chat_room_id && (
-                  <button
-                    onClick={() => navigate(`/amber-chat/${panic.chat_room_id}`)}
-                    className="flex-1 py-2 bg-warning text-warning-foreground rounded-lg text-sm font-medium hover:bg-warning/90 transition-colors flex items-center justify-center gap-1"
+                  <motion.span
+                    animate={{ opacity: [1, 0.4, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="px-1.5 py-0.5 bg-destructive text-destructive-foreground rounded-full text-[9px] font-bold uppercase"
                   >
-                    <Users className="w-4 h-4" />
-                    Join Chat
-                  </button>
+                    LIVE
+                  </motion.span>
+                </div>
+
+                {/* Type */}
+                <p className="text-[11px] font-medium text-destructive truncate">
+                  {panic.incident_type || panic.session_type || "Panic"}
+                </p>
+
+                {/* Location */}
+                <div className="flex items-start gap-1 text-[10px] text-muted-foreground min-h-[24px]">
+                  <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                  <span className="line-clamp-2 leading-tight">{displayLocation}</span>
+                </div>
+
+                {panic.is_moving && (
+                  <p className="text-[10px] text-primary flex items-center gap-1">
+                    <Navigation className="w-3 h-3 animate-pulse" />
+                    Moving
+                  </p>
                 )}
-              </div>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+
+                {/* Actions */}
+                <div className="flex gap-1.5 mt-auto">
+                  <button
+                    onClick={() => handleViewOnMap(panic)}
+                    className="flex-1 py-1.5 bg-primary text-primary-foreground rounded-lg text-[10px] font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    Map
+                  </button>
+                  {panic.chat_room_id && (
+                    <button
+                      onClick={() => navigate(`/amber-chat/${panic.chat_room_id}`)}
+                      className="flex-1 py-1.5 bg-warning text-warning-foreground rounded-lg text-[10px] font-medium hover:bg-warning/90 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Users className="w-3 h-3" />
+                      Chat
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
