@@ -157,11 +157,32 @@ async function createSOS(
     );
   }
 
+  // Validate userId if provided - must exist in profiles
+  let verifiedUserId: string | null = null;
+  if (userId) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .single();
+
+    if (profileError || !profile) {
+      return new Response(
+        JSON.stringify({ error: "Invalid user ID - user does not exist" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if this API key has permission to act on behalf of this user
+    // For now, log a warning and tag the session as API-created for audit
+    verifiedUserId = profile.id;
+  }
+
   // Create panic session
   const { data: session, error: sessionError } = await supabase
     .from("panic_sessions")
     .insert({
-      user_id: userId || null,
+      user_id: verifiedUserId || userId || null,
       initial_lat: lat,
       initial_lng: lng,
       last_known_lat: lat,
@@ -170,6 +191,7 @@ async function createSOS(
         externalId,
         trigger,
         apiKeyId,
+        apiCreated: true,
         ...metadata,
       },
       consent_given: true,

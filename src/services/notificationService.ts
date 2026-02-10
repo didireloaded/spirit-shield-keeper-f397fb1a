@@ -1,10 +1,12 @@
 /**
  * Notification service for handling all app notifications
- * Manages push notifications, in-app notifications, and geo-filtered delivery
+ * 
+ * IMPORTANT: Notifications are created server-side only via:
+ * 1. Database triggers (SECURITY DEFINER functions)
+ * 2. Edge functions using service role key
+ * 
+ * Client-side code should NOT insert into the notifications table directly.
  */
-
-import { supabase } from "@/integrations/supabase/client";
-import { distanceInMeters } from "@/lib/geo";
 
 // Notification types and their configurations
 export const NOTIFICATION_CONFIG = {
@@ -75,110 +77,6 @@ export interface NotificationPayload {
   data?: Record<string, unknown>;
   incidentId?: string;
   location?: { lat: number; lng: number };
-}
-
-/**
- * Create an in-app notification for a user
- */
-export async function createNotification(
-  userId: string,
-  payload: NotificationPayload
-) {
-  const config = NOTIFICATION_CONFIG[payload.type];
-
-  const { data, error } = await supabase.from("notifications").insert([{
-    user_id: userId,
-    type: payload.type,
-    title: payload.title || config.title,
-    body: payload.message,
-    priority: config.priority,
-    entity_id: payload.incidentId,
-    entity_type: payload.incidentId ? "incident" : undefined,
-    data: payload.data as any,
-    read: false,
-  }]);
-
-  if (error) {
-    console.error("[NotificationService] Failed to create notification:", error);
-    return null;
-  }
-
-  return data;
-}
-
-/**
- * Notify users within a radius of an incident
- */
-export async function notifyNearbyUsers(
-  incidentLat: number,
-  incidentLng: number,
-  excludeUserId: string,
-  payload: NotificationPayload
-) {
-  const config = NOTIFICATION_CONFIG[payload.type];
-  const radiusMeters = config.radiusKm * 1000;
-
-  // Get all user locations
-  const { data: locations } = await supabase
-    .from("user_locations")
-    .select("user_id, latitude, longitude")
-    .neq("user_id", excludeUserId);
-
-  if (!locations || locations.length === 0) return [];
-
-  // Filter users within radius
-  const nearbyUsers = locations.filter((loc) => {
-    const distance = distanceInMeters(
-      incidentLat,
-      incidentLng,
-      loc.latitude,
-      loc.longitude
-    );
-    return distance <= radiusMeters;
-  });
-
-  console.log(
-    `[NotificationService] Found ${nearbyUsers.length} users within ${config.radiusKm}km`
-  );
-
-  // Create notifications for each nearby user
-  const notifications = await Promise.all(
-    nearbyUsers.map((user) =>
-      createNotification(user.user_id, payload)
-    )
-  );
-
-  return notifications.filter(Boolean);
-}
-
-/**
- * Notify a user's watchers
- */
-export async function notifyWatchers(
-  userId: string,
-  payload: NotificationPayload
-) {
-  // Get all watchers for this user
-  const { data: watchers } = await supabase
-    .from("watchers")
-    .select("watcher_id")
-    .eq("user_id", userId)
-    .eq("status", "accepted");
-
-  if (!watchers || watchers.length === 0) return [];
-
-  console.log(
-    `[NotificationService] Notifying ${watchers.length} watchers`
-  );
-
-  // Create notifications for each watcher
-  const notifications = await Promise.all(
-    watchers.map((w) =>
-      createNotification(w.watcher_id, payload)
-    )
-  );
-
-  return notifications.filter(Boolean);
 }
 
 /**
