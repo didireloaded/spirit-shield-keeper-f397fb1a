@@ -150,6 +150,45 @@ export type Database = {
         }
         Relationships: []
       }
+      amber_alerts: {
+        Row: {
+          amber_id: string
+          created_at: string | null
+          created_by: string | null
+          last_seen_place: string | null
+          last_seen_time: string | null
+          missing_age: number | null
+          missing_description: string
+          missing_name: string
+          photo_url: string | null
+          status: Database["public"]["Enums"]["amber_status"] | null
+        }
+        Insert: {
+          amber_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          last_seen_place?: string | null
+          last_seen_time?: string | null
+          missing_age?: number | null
+          missing_description: string
+          missing_name: string
+          photo_url?: string | null
+          status?: Database["public"]["Enums"]["amber_status"] | null
+        }
+        Update: {
+          amber_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          last_seen_place?: string | null
+          last_seen_time?: string | null
+          missing_age?: number | null
+          missing_description?: string
+          missing_name?: string
+          photo_url?: string | null
+          status?: Database["public"]["Enums"]["amber_status"] | null
+        }
+        Relationships: []
+      }
       api_keys: {
         Row: {
           allowed_origins: string[] | null
@@ -478,6 +517,38 @@ export type Database = {
           },
         ]
       }
+      community_messages: {
+        Row: {
+          created_at: string | null
+          message: string
+          message_id: string
+          sender_id: string | null
+          thread_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          message: string
+          message_id?: string
+          sender_id?: string | null
+          thread_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          message?: string
+          message_id?: string
+          sender_id?: string | null
+          thread_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "community_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
       community_posts: {
         Row: {
           comments_count: number
@@ -582,6 +653,30 @@ export type Database = {
         }
         Relationships: []
       }
+      community_threads: {
+        Row: {
+          created_at: string | null
+          is_active: boolean | null
+          related_id: string
+          related_type: Database["public"]["Enums"]["related_entity_type"]
+          thread_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          is_active?: boolean | null
+          related_id: string
+          related_type: Database["public"]["Enums"]["related_entity_type"]
+          thread_id?: string
+        }
+        Update: {
+          created_at?: string | null
+          is_active?: boolean | null
+          related_id?: string
+          related_type?: Database["public"]["Enums"]["related_entity_type"]
+          thread_id?: string
+        }
+        Relationships: []
+      }
       conversation_participants: {
         Row: {
           conversation_id: string
@@ -629,6 +724,45 @@ export type Database = {
         }
         Relationships: []
       }
+      incident_reports: {
+        Row: {
+          created_at: string | null
+          description: string
+          incident_id: string
+          incident_type: string
+          lat: number | null
+          lng: number | null
+          place_name: string | null
+          reported_by: string | null
+          status: Database["public"]["Enums"]["incident_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          incident_id?: string
+          incident_type: string
+          lat?: number | null
+          lng?: number | null
+          place_name?: string | null
+          reported_by?: string | null
+          status?: Database["public"]["Enums"]["incident_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          incident_id?: string
+          incident_type?: string
+          lat?: number | null
+          lng?: number | null
+          place_name?: string | null
+          reported_by?: string | null
+          status?: Database["public"]["Enums"]["incident_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       incident_types: {
         Row: {
           auto_notify_authorities: boolean | null
@@ -668,6 +802,42 @@ export type Database = {
           name?: string
           requires_photo?: boolean | null
           requires_recording?: boolean | null
+        }
+        Relationships: []
+      }
+      look_after_me_sessions: {
+        Row: {
+          ended_at: string | null
+          is_active: boolean | null
+          lat: number | null
+          lng: number | null
+          place_name: string | null
+          session_id: string
+          started_at: string | null
+          user_id: string | null
+          watch_id: string
+        }
+        Insert: {
+          ended_at?: string | null
+          is_active?: boolean | null
+          lat?: number | null
+          lng?: number | null
+          place_name?: string | null
+          session_id?: string
+          started_at?: string | null
+          user_id?: string | null
+          watch_id: string
+        }
+        Update: {
+          ended_at?: string | null
+          is_active?: boolean | null
+          lat?: number | null
+          lng?: number | null
+          place_name?: string | null
+          session_id?: string
+          started_at?: string | null
+          user_id?: string | null
+          watch_id?: string
         }
         Relationships: []
       }
@@ -853,6 +1023,42 @@ export type Database = {
           },
         ]
       }
+      notification_events: {
+        Row: {
+          body: string | null
+          created_at: string | null
+          event_id: string
+          priority: Database["public"]["Enums"]["notification_priority"] | null
+          related_id: string | null
+          related_type:
+            | Database["public"]["Enums"]["related_entity_type"]
+            | null
+          title: string | null
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string | null
+          event_id?: string
+          priority?: Database["public"]["Enums"]["notification_priority"] | null
+          related_id?: string | null
+          related_type?:
+            | Database["public"]["Enums"]["related_entity_type"]
+            | null
+          title?: string | null
+        }
+        Update: {
+          body?: string | null
+          created_at?: string | null
+          event_id?: string
+          priority?: Database["public"]["Enums"]["notification_priority"] | null
+          related_id?: string | null
+          related_type?:
+            | Database["public"]["Enums"]["related_entity_type"]
+            | null
+          title?: string | null
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           created_at: string | null
@@ -951,6 +1157,7 @@ export type Database = {
           recipient_id: string | null
           recipient_info: string | null
           sent_at: string
+          user_id: string | null
         }
         Insert: {
           alert_type: string
@@ -962,6 +1169,7 @@ export type Database = {
           recipient_id?: string | null
           recipient_info?: string | null
           sent_at?: string
+          user_id?: string | null
         }
         Update: {
           alert_type?: string
@@ -973,6 +1181,7 @@ export type Database = {
           recipient_id?: string | null
           recipient_info?: string | null
           sent_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -1461,6 +1670,92 @@ export type Database = {
           longitude?: number
           speed?: number | null
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_notification_preferences: {
+        Row: {
+          email_enabled: boolean | null
+          in_app_enabled: boolean | null
+          push_enabled: boolean | null
+          radius_km: number | null
+          user_id: string
+        }
+        Insert: {
+          email_enabled?: boolean | null
+          in_app_enabled?: boolean | null
+          push_enabled?: boolean | null
+          radius_km?: number | null
+          user_id: string
+        }
+        Update: {
+          email_enabled?: boolean | null
+          in_app_enabled?: boolean | null
+          push_enabled?: boolean | null
+          radius_km?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_notifications: {
+        Row: {
+          delivered_at: string | null
+          event_id: string | null
+          is_read: boolean | null
+          notification_id: string
+          user_id: string | null
+        }
+        Insert: {
+          delivered_at?: string | null
+          event_id?: string | null
+          is_read?: boolean | null
+          notification_id?: string
+          user_id?: string | null
+        }
+        Update: {
+          delivered_at?: string | null
+          event_id?: string | null
+          is_read?: boolean | null
+          notification_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "notification_events"
+            referencedColumns: ["event_id"]
+          },
+        ]
+      }
+      user_presence: {
+        Row: {
+          ghost_mode: boolean | null
+          is_online: boolean | null
+          last_updated_at: string | null
+          lat: number | null
+          lng: number | null
+          place_name: string | null
+          user_id: string
+        }
+        Insert: {
+          ghost_mode?: boolean | null
+          is_online?: boolean | null
+          last_updated_at?: string | null
+          lat?: number | null
+          lng?: number | null
+          place_name?: string | null
+          user_id: string
+        }
+        Update: {
+          ghost_mode?: boolean | null
+          is_online?: boolean | null
+          last_updated_at?: string | null
+          lat?: number | null
+          lng?: number | null
+          place_name?: string | null
           user_id?: string
         }
         Relationships: []
