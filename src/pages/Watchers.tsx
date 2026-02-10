@@ -10,9 +10,11 @@ import {
   Shield,
   Eye,
   Bell,
+  BellOff,
   Trash2,
   MessageCircle,
   Phone,
+  Loader2,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
@@ -40,8 +42,9 @@ const Watchers = () => {
     respondToRequest,
     removeWatcher,
     stopWatching,
+    refetch,
   } = useWatchers();
-  const { permission, requestPermission } = usePushNotifications();
+  const { permission, requestPermission, supported } = usePushNotifications();
   const { startConversation } = useDirectMessages();
   const navigate = useNavigate();
 
@@ -51,6 +54,8 @@ const Watchers = () => {
   const [searching, setSearching] = useState(false);
   const [activeTab, setActiveTab] = useState<"watchers" | "watching">("watchers");
   const [searchType, setSearchType] = useState<"name" | "phone">("name");
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [enablingNotifications, setEnablingNotifications] = useState(false);
 
   // Search for users by name or phone
   useEffect(() => {
@@ -61,22 +66,19 @@ const Watchers = () => {
 
     const searchUsers = async () => {
       setSearching(true);
-      
+
       let query = supabase
         .from("profiles")
         .select("id, full_name, avatar_url, phone");
-      
+
       if (searchType === "phone") {
-        // Search by phone - remove spaces and special chars for matching
         const cleanPhone = searchQuery.replace(/[\s\-\(\)]/g, "");
         query = query.ilike("phone", `%${cleanPhone}%`);
       } else {
-        // Search by name
         query = query.ilike("full_name", `%${searchQuery}%`);
       }
-      
-      const { data } = await query.limit(10);
 
+      const { data } = await query.limit(10);
       setSearchResults(data || []);
       setSearching(false);
     };
@@ -86,11 +88,15 @@ const Watchers = () => {
   }, [searchQuery, searchType]);
 
   const handleInvite = async (userId: string, userName: string) => {
+    setInvitingId(userId);
     const { error } = await inviteWatcherById(userId);
+    setInvitingId(null);
     if (error) {
       toast.error(error.message);
     } else {
       toast.success(`Watcher request sent to ${userName}`);
+      // Immediately refresh the list so the pending invite shows
+      await refetch();
       setShowAddModal(false);
       setSearchQuery("");
     }
@@ -111,6 +117,7 @@ const Watchers = () => {
       toast.error("Failed to accept request");
     } else {
       toast.success("Watcher request accepted!");
+      await refetch();
     }
   };
 
@@ -120,6 +127,7 @@ const Watchers = () => {
       toast.error("Failed to reject request");
     } else {
       toast.info("Watcher request declined");
+      await refetch();
     }
   };
 
@@ -129,6 +137,7 @@ const Watchers = () => {
       toast.error("Failed to remove watcher");
     } else {
       toast.success("Watcher removed");
+      await refetch();
     }
   };
 
@@ -138,10 +147,31 @@ const Watchers = () => {
       toast.error("Failed to stop watching");
     } else {
       toast.success("Stopped watching user");
+      await refetch();
     }
   };
 
-  // Request for incoming watcher requests
+  const handleEnableNotifications = async () => {
+    if (permission === "denied") {
+      toast.error(
+        "Notifications are blocked. Please enable them in your browser settings.",
+        { duration: 5000 }
+      );
+      return;
+    }
+    setEnablingNotifications(true);
+    const granted = await requestPermission();
+    setEnablingNotifications(false);
+    if (granted) {
+      toast.success("Notifications enabled! You'll receive alerts from your watchers.");
+    } else {
+      toast.error(
+        "Notifications were not enabled. You can change this in your browser settings."
+      );
+    }
+  };
+
+  // Incoming watcher requests
   const incomingRequests = watchingMe.filter((w) => w.status === "pending");
 
   return (
@@ -149,26 +179,51 @@ const Watchers = () => {
       <Header title="Watchers" />
 
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Notification Permission */}
-        {permission !== "granted" && (
+        {/* Notification Permission Banner */}
+        {supported && permission !== "granted" && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-warning/10 border border-warning/30 rounded-xl p-4"
+            className={`border rounded-xl p-4 ${
+              permission === "denied"
+                ? "bg-destructive/10 border-destructive/30"
+                : "bg-warning/10 border-warning/30"
+            }`}
           >
             <div className="flex items-start gap-3">
-              <Bell className="w-5 h-5 text-warning mt-0.5" />
+              {permission === "denied" ? (
+                <BellOff className="w-5 h-5 text-destructive mt-0.5" />
+              ) : (
+                <Bell className="w-5 h-5 text-warning mt-0.5" />
+              )}
               <div className="flex-1">
-                <p className="font-medium text-sm">Enable Notifications</p>
+                <p className="font-medium text-sm">
+                  {permission === "denied"
+                    ? "Notifications Blocked"
+                    : "Enable Notifications"}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Get alerts when your watchers need help
+                  {permission === "denied"
+                    ? "Notifications are blocked by your browser. Open browser settings to allow them."
+                    : "Get alerts when your watchers need help"}
                 </p>
               </div>
               <button
-                onClick={requestPermission}
-                className="px-3 py-1.5 bg-warning text-warning-foreground text-xs font-medium rounded-lg"
+                onClick={handleEnableNotifications}
+                disabled={enablingNotifications}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg min-w-[70px] flex items-center justify-center ${
+                  permission === "denied"
+                    ? "bg-destructive/20 text-destructive"
+                    : "bg-warning text-warning-foreground"
+                }`}
               >
-                Enable
+                {enablingNotifications ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : permission === "denied" ? (
+                  "Blocked"
+                ) : (
+                  "Enable"
+                )}
               </button>
             </div>
           </motion.div>
@@ -338,9 +393,10 @@ const Watchers = () => {
                     <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
                       <Users className="w-4 h-4" />
                     </div>
-                    <span className="text-sm">
+                    <span className="text-sm flex-1">
                       {request.profile?.full_name || "Unknown"} - Pending
                     </span>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground/50" />
                   </div>
                 ))}
               </div>
@@ -471,7 +527,11 @@ const Watchers = () => {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <input
                     type={searchType === "phone" ? "tel" : "text"}
-                    placeholder={searchType === "phone" ? "Search by phone number..." : "Search by name..."}
+                    placeholder={
+                      searchType === "phone"
+                        ? "Search by phone number..."
+                        : "Search by name..."
+                    }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-secondary rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -482,15 +542,19 @@ const Watchers = () => {
                 {/* Results */}
                 <div className="flex-1 overflow-y-auto space-y-2">
                   {searching ? (
-                    <div className="text-center py-8 text-muted-foreground">
+                    <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
                       Searching...
                     </div>
                   ) : searchResults.length > 0 ? (
                     searchResults.map((user) => (
                       <button
                         key={user.id}
-                        onClick={() => handleInvite(user.id, user.full_name || "User")}
-                        className="w-full flex items-center gap-3 p-3 bg-secondary hover:bg-secondary/80 rounded-xl transition-colors"
+                        onClick={() =>
+                          handleInvite(user.id, user.full_name || "User")
+                        }
+                        disabled={invitingId === user.id}
+                        className="w-full flex items-center gap-3 p-3 bg-secondary hover:bg-secondary/80 rounded-xl transition-colors disabled:opacity-60"
                       >
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                           <Users className="w-5 h-5 text-primary" />
@@ -500,10 +564,16 @@ const Watchers = () => {
                             {user.full_name || "Unknown"}
                           </p>
                           {user.phone && (
-                            <p className="text-xs text-muted-foreground">{user.phone}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {user.phone}
+                            </p>
                           )}
                         </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        {invitingId === user.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                        )}
                       </button>
                     ))
                   ) : searchQuery.length >= 2 ? (
