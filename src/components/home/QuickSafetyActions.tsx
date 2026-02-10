@@ -4,7 +4,7 @@
  */
 
 import { motion } from 'framer-motion';
-import { Shield, MapPin, Users, AlertTriangle } from 'lucide-react';
+import { Shield, MapPin, Users, AlertTriangle, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function QuickSafetyActions() {
@@ -30,10 +30,10 @@ export function QuickSafetyActions() {
       onClick: () => navigate('/watchers'),
     },
     {
-      icon: Shield,
-      label: 'Check-In',
+      icon: Heart,
+      label: 'Safety',
       color: 'bg-success/10 text-success',
-      onClick: () => navigate('/look-after-me'),
+      onClick: () => navigate('/safety'),
     },
   ];
 

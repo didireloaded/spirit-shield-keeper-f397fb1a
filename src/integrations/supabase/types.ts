@@ -450,6 +450,45 @@ export type Database = {
           },
         ]
       }
+      check_in_timers: {
+        Row: {
+          auto_panic: boolean
+          created_at: string
+          id: string
+          interval_minutes: number
+          last_checked_in: string | null
+          missed_count: number
+          next_check_in: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_panic?: boolean
+          created_at?: string
+          id?: string
+          interval_minutes?: number
+          last_checked_in?: string | null
+          missed_count?: number
+          next_check_in: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_panic?: boolean
+          created_at?: string
+          id?: string
+          interval_minutes?: number
+          last_checked_in?: string | null
+          missed_count?: number
+          next_check_in?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           content: string
@@ -724,9 +763,58 @@ export type Database = {
         }
         Relationships: []
       }
+      escalation_requests: {
+        Row: {
+          authority_contact_id: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          escalation_target: string
+          id: string
+          reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          authority_contact_id?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          escalation_target: string
+          id?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          authority_contact_id?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          escalation_target?: string
+          id?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalation_requests_authority_contact_id_fkey"
+            columns: ["authority_contact_id"]
+            isOneToOne: false
+            referencedRelation: "authority_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incident_reports: {
         Row: {
           created_at: string | null
+          credibility_score: number | null
+          credibility_status: string | null
           description: string
           incident_id: string
           incident_type: string
@@ -739,6 +827,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          credibility_score?: number | null
+          credibility_status?: string | null
           description: string
           incident_id?: string
           incident_type: string
@@ -751,6 +841,8 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          credibility_score?: number | null
+          credibility_status?: string | null
           description?: string
           incident_id?: string
           incident_type?: string
@@ -802,6 +894,36 @@ export type Database = {
           name?: string
           requires_photo?: boolean | null
           requires_recording?: boolean | null
+        }
+        Relationships: []
+      }
+      incident_verifications: {
+        Row: {
+          action: string
+          comment: string | null
+          created_at: string
+          id: string
+          incident_id: string
+          incident_type: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          incident_id: string
+          incident_type: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          incident_id?: string
+          incident_type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -950,6 +1072,8 @@ export type Database = {
         Row: {
           comment_count: number | null
           created_at: string | null
+          credibility_score: number | null
+          credibility_status: string | null
           description: string | null
           expires_at: string | null
           id: string
@@ -963,6 +1087,8 @@ export type Database = {
         Insert: {
           comment_count?: number | null
           created_at?: string | null
+          credibility_score?: number | null
+          credibility_status?: string | null
           description?: string | null
           expires_at?: string | null
           id?: string
@@ -976,6 +1102,8 @@ export type Database = {
         Update: {
           comment_count?: number | null
           created_at?: string | null
+          credibility_score?: number | null
+          credibility_status?: string | null
           description?: string | null
           expires_at?: string | null
           id?: string
@@ -1575,6 +1703,66 @@ export type Database = {
         }
         Relationships: []
       }
+      safety_check_prompts: {
+        Row: {
+          auto_escalated: boolean | null
+          created_at: string
+          id: string
+          responded_at: string | null
+          response: string | null
+          trigger_reason: string
+          user_id: string
+        }
+        Insert: {
+          auto_escalated?: boolean | null
+          created_at?: string
+          id?: string
+          responded_at?: string | null
+          response?: string | null
+          trigger_reason: string
+          user_id: string
+        }
+        Update: {
+          auto_escalated?: boolean | null
+          created_at?: string
+          id?: string
+          responded_at?: string | null
+          response?: string | null
+          trigger_reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      safety_insights: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          insight_type: string
+          period_end: string
+          period_start: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          insight_type: string
+          period_end: string
+          period_start: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          insight_type?: string
+          period_end?: string
+          period_start?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       safety_sessions: {
         Row: {
           arrived_at: string | null
@@ -1629,6 +1817,72 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           vehicle_name?: string | null
+        }
+        Relationships: []
+      }
+      safety_zones: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          latitude: number
+          longitude: number
+          radius_meters: number
+          updated_at: string
+          user_id: string
+          zone_type: Database["public"]["Enums"]["zone_type"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          latitude: number
+          longitude: number
+          radius_meters?: number
+          updated_at?: string
+          user_id: string
+          zone_type?: Database["public"]["Enums"]["zone_type"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          latitude?: number
+          longitude?: number
+          radius_meters?: number
+          updated_at?: string
+          user_id?: string
+          zone_type?: Database["public"]["Enums"]["zone_type"]
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_type: string
+          description: string | null
+          earned_at: string
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          achievement_type: string
+          description?: string | null
+          earned_at?: string
+          id?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          achievement_type?: string
+          description?: string | null
+          earned_at?: string
+          id?: string
+          title?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1791,6 +2045,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          role: Database["public"]["Enums"]["watcher_role"]
           status: Database["public"]["Enums"]["watcher_status"] | null
           user_id: string
           watcher_id: string
@@ -1798,6 +2053,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          role?: Database["public"]["Enums"]["watcher_role"]
           status?: Database["public"]["Enums"]["watcher_status"] | null
           user_id: string
           watcher_id: string
@@ -1805,6 +2061,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          role?: Database["public"]["Enums"]["watcher_role"]
           status?: Database["public"]["Enums"]["watcher_status"] | null
           user_id?: string
           watcher_id?: string
@@ -1813,7 +2070,17 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      incident_heatmap_data: {
+        Row: {
+          incident_count: number | null
+          incident_type: string | null
+          lat_bucket: number | null
+          latest_at: string | null
+          lng_bucket: number | null
+          week_bucket: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       check_rate_limit: {
@@ -1824,6 +2091,21 @@ export type Database = {
           p_window_minutes?: number
         }
         Returns: boolean
+      }
+      get_heatmap_data: {
+        Args: {
+          max_lat: number
+          max_lng: number
+          min_lat: number
+          min_lng: number
+        }
+        Returns: {
+          incident_count: number
+          incident_type: string
+          lat_bucket: number
+          latest_at: string
+          lng_bucket: number
+        }[]
       }
     }
     Enums: {
@@ -1856,7 +2138,9 @@ export type Database = {
       panic_status: "active" | "ended"
       related_entity_type: "panic" | "incident" | "amber" | "lookAfterMe"
       session_status: "active" | "arrived" | "late" | "escalated" | "cancelled"
+      watcher_role: "viewer" | "responder" | "emergency_contact"
       watcher_status: "pending" | "accepted" | "rejected"
+      zone_type: "home" | "work" | "school" | "route" | "custom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2016,7 +2300,9 @@ export const Constants = {
       panic_status: ["active", "ended"],
       related_entity_type: ["panic", "incident", "amber", "lookAfterMe"],
       session_status: ["active", "arrived", "late", "escalated", "cancelled"],
+      watcher_role: ["viewer", "responder", "emergency_contact"],
       watcher_status: ["pending", "accepted", "rejected"],
+      zone_type: ["home", "work", "school", "route", "custom"],
     },
   },
 } as const
