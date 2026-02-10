@@ -8,6 +8,7 @@ import { AmberAlertDetailsModal } from "@/components/AmberAlertDetailsModal";
 import { EmptyState } from "@/components/EmptyState";
 import { PanicButton } from "@/components/PanicButton";
 import { LivePanicFeed } from "@/components/panic/LivePanicFeed";
+import { UniversalEmergencyButton } from "@/components/panic/UniversalEmergencyButton";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAudioRecording } from "@/hooks/useAudioRecording";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -213,6 +214,9 @@ const Alerts = () => {
           <PanicButton variant="panic" />
           <PanicButton variant="amber" />
         </div>
+
+        {/* Incident Type Selector - for specific categorized reports */}
+        <UniversalEmergencyButton />
 
         {/* Recording indicator */}
         <AnimatePresence>
