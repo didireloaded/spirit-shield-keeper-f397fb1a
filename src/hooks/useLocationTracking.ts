@@ -66,9 +66,9 @@ export function useLocationTracking({
           { onConflict: "user_id" }
         );
 
-        if (error) console.error("[LocationTracking] Update error:", error);
-      } catch (error) {
-        console.error("[LocationTracking] Error:", error);
+        if (error) { /* silent - location updates are non-critical */ }
+      } catch {
+        // Silent fail - location tracking is best-effort
       }
     },
     [user, ghostMode, updateInterval]
@@ -85,7 +85,7 @@ export function useLocationTracking({
 
     const watchId = navigator.geolocation.watchPosition(
       updateLocation,
-      (error) => console.error("[LocationTracking] Geo error:", error),
+      () => {},
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
     );
 

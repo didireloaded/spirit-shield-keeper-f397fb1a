@@ -76,7 +76,7 @@ export default function Community() {
   };
 
   const handleOpenThread = (thread: CommunityThread) => {
-    console.log("[Community] Open thread:", thread.id, thread.type);
+    // Thread detail view — future enhancement
   };
 
   return (

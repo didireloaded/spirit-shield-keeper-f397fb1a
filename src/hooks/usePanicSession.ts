@@ -70,7 +70,7 @@ export const usePanicSession = () => {
     const fileName = `${user.id}/${panicSessionId}/${chunkIndex}-${startTime.getTime()}.webm`;
     const durationSeconds = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
 
-    console.log(`[Panic] Uploading chunk ${chunkIndex}, size: ${blob.size} bytes`);
+    // Upload chunk
 
     // Upload to storage
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -108,7 +108,7 @@ export const usePanicSession = () => {
       return null;
     }
 
-    console.log(`[Panic] Chunk ${chunkIndex} uploaded successfully`);
+    // Chunk uploaded
     return urlData.publicUrl;
   }, [user]);
 
@@ -162,14 +162,11 @@ export const usePanicSession = () => {
               heading: position.coords.heading,
             },
           });
-          console.log(`[Panic] Location updated: ${position.coords.latitude}, ${position.coords.longitude}`);
-        } catch (err) {
-          console.error("[Panic] Failed to update location:", err);
+        } catch {
+          // Location update failed - non-critical
         }
       },
-      (error) => {
-        console.error("[Panic] Geolocation error:", error);
-      },
+      () => {},
       {
         enableHighAccuracy: true,
         timeout: 5000,
@@ -221,7 +218,7 @@ export const usePanicSession = () => {
       threatScore: threatScore || 0,
     };
 
-    console.log(`[Panic] Starting panic session (${triggerSource})...`);
+    // Starting panic session
 
     // Create session via edge function
     const { data, error: sessionError } = await supabase.functions.invoke("panic-session", {
@@ -237,15 +234,14 @@ export const usePanicSession = () => {
 
     if (sessionError || !data?.panicSessionId) {
       setError("Failed to create panic session");
-      console.error("[Panic] Session creation failed:", sessionError);
+      void sessionError;
       return null;
     }
 
     const panicSessionId = data.panicSessionId;
     sessionIdRef.current = panicSessionId;
 
-    console.log(`[Panic] Session created: ${panicSessionId}`);
-    toast.success("🚨 Panic alert activated! Recording audio...");
+    toast.success("Panic alert activated. Recording audio.");
 
     // Start audio recording
     try {
@@ -280,7 +276,7 @@ export const usePanicSession = () => {
       mediaRecorder.start(1000);
       setIsRecording(true);
 
-      console.log("[Panic] Audio recording started");
+      // Audio recording started
 
       // Set up chunk processing interval
       chunkIntervalRef.current = setInterval(() => {
@@ -319,7 +315,7 @@ export const usePanicSession = () => {
     if (!sessionIdRef.current) return;
 
     const panicSessionId = sessionIdRef.current;
-    console.log(`[Panic] Ending session: ${panicSessionId}`);
+    // Ending session
 
     // Stop intervals
     if (chunkIntervalRef.current) {
@@ -365,7 +361,7 @@ export const usePanicSession = () => {
 
     toast.info(status === "ended" ? "Panic alert ended. Evidence saved." : "Panic alert interrupted.");
 
-    console.log(`[Panic] Session ended with status: ${status}`);
+    // Session ended
   }, [processChunks]);
 
   // Cancel panic session

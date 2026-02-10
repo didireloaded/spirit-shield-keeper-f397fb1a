@@ -116,23 +116,18 @@ export function MapboxMap({
           setMapboxToken(data.token);
           setTokenError(null);
         } else {
-          console.error("[Map] Failed to fetch Mapbox token:", error);
-          // Try fallback from environment
+          void error;
           const fallback = import.meta.env.VITE_MAPBOX_TOKEN;
           if (fallback) {
-            console.log("[Map] Using fallback token from env");
             setMapboxToken(fallback);
             setTokenError(null);
           } else {
             setTokenError("Map service unavailable. Please try again later.");
           }
         }
-      } catch (err) {
-        console.error("[Map] Error fetching token:", err);
-        // Try fallback from environment
+      } catch {
         const fallback = import.meta.env.VITE_MAPBOX_TOKEN;
         if (fallback) {
-          console.log("[Map] Using fallback token from env");
           setMapboxToken(fallback);
           setTokenError(null);
         } else {

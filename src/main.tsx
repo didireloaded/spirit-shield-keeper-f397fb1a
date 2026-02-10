@@ -10,8 +10,7 @@ validateEnv();
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker
     .register("/notification-worker.js")
-    .then((reg) => console.log("[SW] Notification worker registered", reg.scope))
-    .catch((err) => console.warn("[SW] Registration failed:", err));
+    .catch(() => {});
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

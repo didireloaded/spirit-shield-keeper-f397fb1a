@@ -33,30 +33,37 @@ export function useRealtimeLocations() {
     try {
       const { data, error } = await supabase
         .from("user_locations")
-        .select(`
-          *,
-          profile:profiles!user_id (
-            avatar_url,
-            full_name,
-            username
-          )
-        `)
+        .select("*")
         .eq("ghost_mode", false)
         .order("updated_at", { ascending: false })
         .limit(200);
 
       if (error) throw error;
 
+      if (!data || data.length === 0) {
+        setLocations([]);
+        return;
+      }
+
+      // Fetch profiles separately (no FK relationship)
+      const userIds = [...new Set(data.map((d: any) => d.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, avatar_url, full_name, username")
+        .in("id", userIds);
+
+      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+
       setLocations(
-        (data || []).map((d: any) => ({
+        data.map((d: any) => ({
           ...d,
           is_moving: d.is_moving ?? false,
           ghost_mode: d.ghost_mode ?? false,
-          profile: Array.isArray(d.profile) ? d.profile[0] ?? null : d.profile,
+          profile: profileMap.get(d.user_id) || null,
         }))
       );
-    } catch (error) {
-      console.error("[RealtimeLocations] Fetch error:", error);
+    } catch {
+      // Silent fail - locations are non-critical
     } finally {
       setLoading(false);
     }
