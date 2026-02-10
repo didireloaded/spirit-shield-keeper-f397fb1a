@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[OpenEmergencyAPI] Error:", errorMessage);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -245,12 +245,28 @@ async function updateLocation(
 ) {
   const { lat, lng, accuracy, speed, heading } = body;
 
-  // Verify session exists
+  // Verify session exists and was created by this API key
   const { data: session, error: sessionError } = await supabase
     .from("panic_sessions")
-    .select("id, status")
+    .select("id, status, device_info")
     .eq("id", sosId)
     .single();
+
+  if (sessionError || !session) {
+    return new Response(
+      JSON.stringify({ error: "SOS not found" }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Verify this session was created by this API key
+  const deviceInfo = session.device_info as Record<string, unknown> | null;
+  if (!deviceInfo?.apiCreated || deviceInfo?.apiKeyId !== apiKeyId) {
+    return new Response(
+      JSON.stringify({ error: "SOS not found" }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   if (sessionError || !session) {
     return new Response(
@@ -301,12 +317,28 @@ async function resolveSOS(
 ) {
   const { reason } = body;
 
-  // Verify session exists
+  // Verify session exists and was created by this API key
   const { data: session, error: sessionError } = await supabase
     .from("panic_sessions")
-    .select("id")
+    .select("id, device_info")
     .eq("id", sosId)
     .single();
+
+  if (sessionError || !session) {
+    return new Response(
+      JSON.stringify({ error: "SOS not found" }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Verify this session was created by this API key
+  const deviceInfo = session.device_info as Record<string, unknown> | null;
+  if (!deviceInfo?.apiCreated || deviceInfo?.apiKeyId !== apiKeyId) {
+    return new Response(
+      JSON.stringify({ error: "SOS not found" }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   if (sessionError || !session) {
     return new Response(
@@ -347,11 +379,20 @@ async function getSOSStatus(
 ) {
   const { data: session, error: sessionError } = await supabase
     .from("panic_sessions")
-    .select("id, status, started_at, ended_at, last_known_lat, last_known_lng, last_location_at")
+    .select("id, status, started_at, ended_at, last_known_lat, last_known_lng, last_location_at, device_info")
     .eq("id", sosId)
     .single();
 
   if (sessionError || !session) {
+    return new Response(
+      JSON.stringify({ error: "SOS not found" }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Verify this session was created by this API key
+  const deviceInfo = session.device_info as Record<string, unknown> | null;
+  if (!deviceInfo?.apiCreated || deviceInfo?.apiKeyId !== apiKeyId) {
     return new Response(
       JSON.stringify({ error: "SOS not found" }),
       { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
