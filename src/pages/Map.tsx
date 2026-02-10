@@ -266,10 +266,10 @@ const Map = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="relative h-screen w-full overflow-hidden">
-        {/* Map loading skeleton */}
+        {/* ── L8: BASE MAP ── */}
         {!mapEngine.isIdle && <MapSkeleton />}
 
-        {/* Fullscreen Map */}
+        {/* ── L8: FULLSCREEN MAP ── */}
         <MapboxMap
           className="absolute inset-0"
           showUserLocation={!ghostMode}
@@ -280,7 +280,7 @@ const Map = () => {
           onMarkerClick={handleMarkerClick}
         />
 
-        {/* User Avatar Markers */}
+        {/* ── L6: MAP MARKERS & LIVE TRACKING ── */}
         <UserAvatarMarkers
           map={mapInstanceRef.current}
           locations={userLocations}
@@ -288,31 +288,31 @@ const Map = () => {
           onUserClick={handleUserSelect}
         />
 
-        {/* Panic Alert Live Layer */}
+        {/* L6: Panic Alert Live Layer */}
         <PanicAlertMapLayer
           map={mapInstanceRef.current}
           currentUserId={user?.id}
         />
 
-        {/* Look After Me Tracking Layer */}
+        {/* L6: Look After Me Tracking Layer */}
         <LookAfterMeMapLayer map={mapInstanceRef.current} />
 
-        {/* Floating top controls (back button) */}
+        {/* ── L3: PRIMARY MAP CONTROLS (search, online pill, legend, back) ── */}
         <MapTopControls />
 
-        {/* Active Trip Banner */}
-        <ActiveTripBanner className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] left-[var(--map-inset)] right-[var(--map-inset)] z-20" />
+        {/* ── L2: CRITICAL FLOATING ALERTS ── */}
+        <ActiveTripBanner className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] left-[var(--map-inset)] right-[var(--map-inset)] z-[var(--z-map-critical)]" />
 
-        {/* Enhanced Search Bar */}
+        {/* L3: Search Bar */}
         <MapSearchBar
           onLocationSelect={handleSearchSelect}
           incidents={allAlerts}
         />
 
-        {/* Map Legend */}
+        {/* L3: Map Legend */}
         <MapLegend />
 
-        {/* Live Location Label */}
+        {/* ── L4: CONTEXTUAL FEEDBACK ── */}
         {latitude && longitude && !ghostMode && (
           <LiveLocationLabel
             latitude={latitude}
@@ -322,25 +322,25 @@ const Map = () => {
           />
         )}
 
-        {/* Speed & Compass */}
+        {/* L4: Speed & Compass */}
         <SpeedCompass heading={heading} speed={speed} />
 
-        {/* Ghost Mode Toggle - right side, second row */}
-        <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] right-[var(--map-inset)] z-20">
+        {/* L3: Ghost Mode Toggle */}
+        <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] right-[var(--map-inset)] z-[var(--z-map-controls)]">
           <GhostModeToggle isGhost={ghostMode} onChange={handleGhostToggle} />
         </div>
 
-        {/* User Locations List */}
+        {/* L3: Online Users List */}
         <UserLocationsList
           locations={userLocations}
           currentUserLocation={latitude && longitude ? { lat: latitude, lng: longitude } : undefined}
           onUserSelect={handleUserSelect}
         />
 
-        {/* Near You Alert Strip */}
+        {/* L2: Near You Alert Strip */}
         <AnimatePresence>
           {showNearbyStrip && nearbyAlert && (
-            <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] left-[var(--map-inset)] right-[var(--map-inset)] z-30">
+            <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] left-[var(--map-inset)] right-[var(--map-inset)] z-[var(--z-map-critical)]">
               <NearYouStrip
                 alert={nearbyAlert}
                 isHighPriority={isHighPriority}
@@ -351,7 +351,7 @@ const Map = () => {
           )}
         </AnimatePresence>
 
-        {/* Left floating controls (zoom + recenter + layers) */}
+        {/* ── L5: MAP INTERACTION BUTTONS ── */}
         <MapControls
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
@@ -360,7 +360,7 @@ const Map = () => {
           layersActive={heatmapEnabled}
         />
 
-        {/* Quick Actions Menu */}
+        {/* L5: Quick Actions Menu */}
         <QuickActionsMenu
           onReportIncident={handleAddIncidentToggle}
           onEmergencyCall={() => window.open("tel:10111")}
@@ -375,13 +375,13 @@ const Map = () => {
           onToggleWatchers={() => toast.info("Watchers feature coming soon")}
         />
 
-        {/* Report FAB */}
+        {/* L5: Report FAB */}
         <ReportFab isActive={showAddPin} onClick={handleAddIncidentToggle} />
 
-        {/* Crosshair for pin placement */}
+        {/* L4: Crosshair for pin placement */}
         <CrosshairIndicator visible={showAddPin && !selectedLocation} />
 
-        {/* Incident Report Modal */}
+        {/* ── L1: SYSTEM MODALS ── */}
         <IncidentReportModal
           visible={showAddPin && !!selectedLocation}
           location={selectedLocation}
@@ -389,7 +389,7 @@ const Map = () => {
           onSuccess={refetchMarkers}
         />
 
-        {/* Collapsible Bottom Sheet with snap points */}
+        {/* L5: Bottom Sheet */}
         <ReportsBottomSheet
           reports={markers}
           userLocation={latitude && longitude ? { lat: latitude, lng: longitude } : null}
@@ -401,7 +401,7 @@ const Map = () => {
         />
       </div>
 
-      {/* Incident Details Modal */}
+      {/* L1: Incident Details Modal */}
       <IncidentDetailsModal
         marker={selectionMode === "detail" ? selectedMarker : null}
         onClose={clearSelection}

@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function MapSkeleton() {
   return (
-    <div className="absolute inset-0 bg-muted/20 animate-pulse z-10">
+    <div className="absolute inset-0 bg-muted/20 animate-pulse z-[var(--z-map-controls)]">
       {/* Search bar skeleton */}
       <div className="absolute top-4 left-4 right-4">
         <Skeleton className="h-12 w-full rounded-2xl" />

@@ -85,7 +85,7 @@ export function IncidentPreviewCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 100 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      className="absolute bottom-24 left-4 right-4 z-20"
+      className="absolute bottom-24 left-4 right-4 z-[var(--z-map-feedback)]"
     >
       <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden backdrop-blur-sm">
         {/* Header with type and status */}

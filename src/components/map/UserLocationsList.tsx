@@ -76,7 +76,7 @@ export function UserLocationsList({
           haptics.light();
           setIsOpen(!isOpen);
         }}
-        className="fixed top-[var(--map-top-row)] left-[var(--map-inset)] z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] text-foreground hover:bg-background transition-colors"
+        className="fixed top-[var(--map-top-row)] left-[var(--map-inset)] z-[var(--z-map-controls)] flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] text-foreground hover:bg-background transition-colors"
       >
         <Users className="w-4 h-4" />
         <span className="text-sm font-medium">{locations.length} Online</span>
@@ -94,7 +94,7 @@ export function UserLocationsList({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+              className="fixed inset-0 bg-black/50 z-[var(--z-modal-backdrop)] backdrop-blur-sm"
             />
 
             <motion.div
@@ -102,7 +102,7 @@ export function UserLocationsList({
               animate={{ x: 0 }}
               exit={{ x: -320 }}
               transition={{ type: "spring", damping: 25 }}
-              className="fixed left-0 top-0 bottom-0 w-80 bg-background z-50 shadow-2xl overflow-hidden flex flex-col"
+              className="fixed left-0 top-0 bottom-0 w-80 bg-background z-[var(--z-modal)] shadow-2xl overflow-hidden flex flex-col"
             >
               <div className="p-4 border-b border-border flex items-center justify-between">
                 <div>

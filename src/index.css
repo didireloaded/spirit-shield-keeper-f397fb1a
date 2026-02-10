@@ -85,19 +85,30 @@
     --bottom-nav-height: calc(64px + var(--safe-area-bottom));
     --fab-offset: calc(80px + var(--safe-area-bottom));
 
-    /* Z-index layers (NO OVERLAPS) */
-    --z-base: 0;
-    --z-map: 1;
-    --z-map-markers: 2;
-    --z-map-controls: 10;
-    --z-map-overlays: 15;
-    --z-header: 40;
+    /* ── Z-INDEX LAYERING ORDER (8 layers, top = highest) ──
+     * L1: System Modals (panic confirm, report modal, amber form)
+     * L2: Critical Floating Alerts (live panic card, tracking banner)
+     * L3: Primary Map Controls (search bar, online pill, legend btn)
+     * L4: Contextual Feedback (location label, status hints)
+     * L5: Map Interaction Buttons (report, zoom, recenter)
+     * L6: Map Markers & Live Tracking (panic/incident markers, paths)
+     * L7: Map Labels & Roads (managed by Mapbox)
+     * L8: Base Map (terrain, roads, buildings)
+     */
+    --z-map-base: 0;          /* L8 */
+    --z-map-markers: 2;       /* L6 */
+    --z-map-buttons: 10;      /* L5 */
+    --z-map-feedback: 15;     /* L4 */
+    --z-map-controls: 20;     /* L3 */
+    --z-map-critical: 30;     /* L2 */
+    --z-modal-backdrop: 40;   /* L1 backdrop */
+    --z-modal: 50;            /* L1 content */
+    --z-modal-nested: 60;     /* L1 nested (confirmations) */
+
+    /* App chrome */
     --z-bottom-nav: 50;
-    --z-fab: 45;
-    --z-bottom-sheet: 60;
-    --z-modal: 70;
     --z-toast: 80;
-    --z-panic: 90;
+    --z-panic: 100;           /* CrashCountdown, ultimate override */
 
     /* Touch target sizes */
     --touch-min: 44px;

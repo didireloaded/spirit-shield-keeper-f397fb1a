@@ -149,7 +149,7 @@ export function MapSearchBar({
   };
 
   return (
-    <div className={`fixed top-[var(--map-top-row)] left-1/2 -translate-x-1/2 z-20 ${className}`}>
+    <div className={`fixed top-[var(--map-top-row)] left-1/2 -translate-x-1/2 z-[var(--z-map-controls)] ${className}`}>
       <AnimatePresence mode="wait">
         {!isExpanded ? (
           /* ── Collapsed Pill (Dynamic Island style) ── */

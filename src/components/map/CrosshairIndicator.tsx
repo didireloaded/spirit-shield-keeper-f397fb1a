@@ -18,7 +18,7 @@ export function CrosshairIndicator({ visible }: CrosshairIndicatorProps) {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[var(--z-map-feedback)]"
         >
           <div className="relative">
             {/* Subtle pulse ring - not aggressive ping */}
