@@ -76,7 +76,7 @@ export function UserLocationsList({
           haptics.light();
           setIsOpen(!isOpen);
         }}
-        className="fixed top-16 left-4 z-20 flex items-center gap-2 px-3 py-2 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-lg text-foreground hover:bg-background transition-colors"
+        className="fixed top-[var(--map-top-row)] left-[var(--map-inset)] z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] text-foreground hover:bg-background transition-colors"
       >
         <Users className="w-4 h-4" />
         <span className="text-sm font-medium">{locations.length} Online</span>

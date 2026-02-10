@@ -102,6 +102,12 @@
     /* Touch target sizes */
     --touch-min: 44px;
     --touch-comfortable: 48px;
+
+    /* Map floating element spacing system */
+    --map-inset: 16px;
+    --map-top-row: 16px;
+    --map-element-gap: 8px;
+    --map-bottom-safe: 80px; /* no-fly zone above bottom nav */
   }
 }
 

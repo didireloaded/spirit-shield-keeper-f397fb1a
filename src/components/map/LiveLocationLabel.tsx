@@ -1,8 +1,10 @@
 /**
  * Live Location Label
  * Floating label showing user's current location name
+ * Auto-dismisses after 5 seconds, reappears on location change
  */
 
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Navigation, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -32,16 +34,27 @@ export function LiveLocationLabel({
     locationName ? null : longitude
   );
   const location = locationName || resolvedName;
+  const [visible, setVisible] = useState(true);
+
+  // Auto-dismiss after 5 seconds, re-show on location name change
+  useEffect(() => {
+    setVisible(true);
+    const timer = setTimeout(() => setVisible(false), 5000);
+    return () => clearTimeout(timer);
+  }, [location]);
 
   const speedMph = (speed * 2.237).toFixed(0);
 
   return (
+    <AnimatePresence>
+      {visible && (
     <motion.div
-      initial={{ opacity: 0, y: -20 }}
+      initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="fixed top-20 left-1/2 -translate-x-1/2 z-25 max-w-sm w-full px-4"
+      exit={{ opacity: 0, y: -10 }}
+      className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] left-1/2 -translate-x-1/2 z-[15] max-w-xs w-auto px-[var(--map-inset)]"
     >
-      <div className="bg-background/90 backdrop-blur-md rounded-2xl border border-border/50 shadow-lg overflow-hidden">
+      <div className="bg-background/90 backdrop-blur-md rounded-full border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] overflow-hidden">
         <div className="p-3 flex items-center gap-3">
           <div className={isMoving ? "animate-pulse" : ""}>
             {isMoving ? (
@@ -99,6 +112,8 @@ export function LiveLocationLabel({
         </div>
       </div>
     </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

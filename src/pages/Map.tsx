@@ -301,7 +301,7 @@ const Map = () => {
         <MapTopControls />
 
         {/* Active Trip Banner */}
-        <ActiveTripBanner className="fixed top-14 left-4 right-4 z-20" />
+        <ActiveTripBanner className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] left-[var(--map-inset)] right-[var(--map-inset)] z-20" />
 
         {/* Enhanced Search Bar */}
         <MapSearchBar
@@ -325,8 +325,8 @@ const Map = () => {
         {/* Speed & Compass */}
         <SpeedCompass heading={heading} speed={speed} />
 
-        {/* Ghost Mode Toggle */}
-        <div className="fixed top-16 right-4 z-20">
+        {/* Ghost Mode Toggle - right side, second row */}
+        <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] right-[var(--map-inset)] z-20">
           <GhostModeToggle isGhost={ghostMode} onChange={handleGhostToggle} />
         </div>
 
@@ -340,7 +340,7 @@ const Map = () => {
         {/* Near You Alert Strip */}
         <AnimatePresence>
           {showNearbyStrip && nearbyAlert && (
-            <div className="fixed top-36 left-4 right-4 z-30">
+            <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] left-[var(--map-inset)] right-[var(--map-inset)] z-30">
               <NearYouStrip
                 alert={nearbyAlert}
                 isHighPriority={isHighPriority}

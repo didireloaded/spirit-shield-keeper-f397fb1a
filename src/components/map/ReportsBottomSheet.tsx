@@ -130,7 +130,7 @@ export function ReportsBottomSheet({
 
   return (
     <motion.div
-      className="fixed bottom-16 left-0 right-0 z-20"
+      className="fixed bottom-[var(--map-bottom-safe)] left-0 right-0 z-20"
       drag="y"
       dragConstraints={{ top: 0, bottom: 0 }}
       dragElastic={{ top: 0.1, bottom: 0.3 }}
@@ -154,7 +154,9 @@ export function ReportsBottomSheet({
         {/* Header */}
         <div className="px-5 pb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <p className="font-medium text-foreground text-sm">{summaryText}</p>
+            <span className="inline-flex items-center px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+              {summaryText}
+            </span>
             {!isCollapsed && (
               <ChevronUp className="w-4 h-4 text-muted-foreground" />
             )}

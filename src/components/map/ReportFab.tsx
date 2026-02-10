@@ -17,9 +17,9 @@ export function ReportFab({ isActive = false, onClick }: ReportFabProps) {
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       className={`
-        fixed bottom-36 right-4 z-30
+        fixed bottom-[calc(var(--map-bottom-safe)+56px)] right-[calc(var(--map-inset)+4px)] z-30
         flex items-center gap-2
-        px-5 py-3 rounded-full shadow-lg
+        px-5 py-3 rounded-full shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)]
         transition-colors
         ${
           isActive

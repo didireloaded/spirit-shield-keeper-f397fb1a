@@ -35,7 +35,7 @@ export function MapLegend() {
           haptics.light();
           setIsOpen(!isOpen);
         }}
-        className="fixed top-4 right-4 z-20 w-11 h-11 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-lg flex items-center justify-center text-foreground hover:bg-background transition-colors"
+        className="fixed top-[var(--map-top-row)] right-[var(--map-inset)] z-20 w-10 h-10 rounded-full bg-background/80 backdrop-blur-md border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] flex items-center justify-center text-foreground hover:bg-background transition-colors"
         aria-label="Toggle map legend"
       >
         <Info className="w-5 h-5" />
