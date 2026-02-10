@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useNotificationAlerts } from "@/hooks/useNotificationAlerts";
+import { distanceInMeters } from "@/lib/geo";
 import {
   getPanicStartedCopy,
   getPanicEndedCopy,
@@ -70,6 +71,28 @@ export function useNotificationDispatcher() {
   const notifiedPanicIds = useRef<Set<string>>(new Set());
   const notifiedIncidentIds = useRef<Set<string>>(new Set());
   const notifiedAmberIds = useRef<Set<string>>(new Set());
+  // User's current location for geo-filtering
+  const userLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Keep user location updated via geolocation watch
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        userLocationRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      },
+      () => {},
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
+  // Geo-filter: returns true if alert is within radius (or no user location available)
+  const isWithinRadius = useCallback((alertLat: number, alertLng: number, radiusMeters: number): boolean => {
+    const loc = userLocationRef.current;
+    if (!loc) return true; // Can't filter, allow through
+    return distanceInMeters(loc.lat, loc.lng, alertLat, alertLng) <= radiusMeters;
+  }, []);
 
   const isDuplicate = useCallback((key: string): boolean => {
     const last = dedupMap.current.get(key);
@@ -231,8 +254,9 @@ export function useNotificationDispatcher() {
           if (notifiedIncidentIds.current.has(a.id)) return;
           notifiedIncidentIds.current.add(a.id);
 
-          // TODO: geo-filter here using user's current location
-          // For now dispatch to all (edge function handles geo-filtering)
+          // Geo-filter: only notify if incident is within 10km
+          if (!isWithinRadius(a.latitude, a.longitude, 10000)) return;
+
           const copy = getIncidentNearCopy("your area", a.id);
           dispatch({
             eventType: "incident_reported",
@@ -278,6 +302,9 @@ export function useNotificationDispatcher() {
           if (m.user_id === user.id) return;
           if (notifiedIncidentIds.current.has(m.id)) return;
           notifiedIncidentIds.current.add(m.id);
+
+          // Geo-filter: only notify if marker is within 10km
+          if (!isWithinRadius(m.latitude, m.longitude, 10000)) return;
 
           const copy = getIncidentNearCopy("your area", m.id);
           dispatch({
