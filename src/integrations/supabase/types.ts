@@ -1541,6 +1541,7 @@ export type Database = {
         | "suspicious"
         | "accident"
         | "other"
+      amber_status: "active" | "closed"
       authority_type:
         | "police"
         | "fire"
@@ -1548,6 +1549,7 @@ export type Database = {
         | "helpline"
         | "ngo"
         | "security"
+      incident_status: "active" | "handling" | "resolved"
       marker_type:
         | "robbery"
         | "accident"
@@ -1555,6 +1557,9 @@ export type Database = {
         | "assault"
         | "kidnapping"
         | "other"
+      notification_priority: "critical" | "important" | "info"
+      panic_status: "active" | "ended"
+      related_entity_type: "panic" | "incident" | "amber" | "lookAfterMe"
       session_status: "active" | "arrived" | "late" | "escalated" | "cancelled"
       watcher_status: "pending" | "accepted" | "rejected"
     }
@@ -1694,6 +1699,7 @@ export const Constants = {
         "accident",
         "other",
       ],
+      amber_status: ["active", "closed"],
       authority_type: [
         "police",
         "fire",
@@ -1702,6 +1708,7 @@ export const Constants = {
         "ngo",
         "security",
       ],
+      incident_status: ["active", "handling", "resolved"],
       marker_type: [
         "robbery",
         "accident",
@@ -1710,6 +1717,9 @@ export const Constants = {
         "kidnapping",
         "other",
       ],
+      notification_priority: ["critical", "important", "info"],
+      panic_status: ["active", "ended"],
+      related_entity_type: ["panic", "incident", "amber", "lookAfterMe"],
       session_status: ["active", "arrived", "late", "escalated", "cancelled"],
       watcher_status: ["pending", "accepted", "rejected"],
     },
