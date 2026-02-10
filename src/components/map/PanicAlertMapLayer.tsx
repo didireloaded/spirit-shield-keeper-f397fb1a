@@ -1,7 +1,8 @@
 /**
  * Panic Alert Map Layer
  * Real-time GPS tracking with avatar-based markers
- * Shows live/ended status with red ring + user photo
+ * Shows ONLY active panic sessions on the map.
+ * Resolved/ended sessions are excluded.
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -43,39 +44,39 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
   const popupsRef = useRef<Map<string, mapboxgl.Popup>>(new Map());
   const trailsRef = useRef<Map<string, [number, number][]>>(new Map());
 
+  const fetchActivePanics = useCallback(async () => {
+    // ONLY fetch active panics — resolved/ended never appear on map
+    const { data } = await supabase
+      .from("panic_sessions")
+      .select(`
+        id, user_id, status, initial_lat, initial_lng,
+        last_known_lat, last_known_lng, incident_type,
+        location_name, created_at, ended_at, chat_room_id
+      `)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (data) {
+      const userIds = [...new Set(data.map((d) => d.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", userIds);
+
+      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+
+      setActivePanics(
+        data.map((d) => ({
+          ...d,
+          user_name: profileMap.get(d.user_id)?.full_name || "User",
+          avatar_url: profileMap.get(d.user_id)?.avatar_url || null,
+        }))
+      );
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchActivePanics = async () => {
-      const { data } = await supabase
-        .from("panic_sessions")
-        .select(`
-          id, user_id, status, initial_lat, initial_lng,
-          last_known_lat, last_known_lng, incident_type,
-          location_name, created_at, ended_at, chat_room_id
-        `)
-        .in("status", ["active", "ended"])
-        .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (data) {
-        const userIds = [...new Set(data.map((d) => d.user_id))];
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, avatar_url")
-          .in("id", userIds);
-
-        const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-
-        setActivePanics(
-          data.map((d) => ({
-            ...d,
-            user_name: profileMap.get(d.user_id)?.full_name || "User",
-            avatar_url: profileMap.get(d.user_id)?.avatar_url || null,
-          }))
-        );
-      }
-    };
-
     fetchActivePanics();
 
     const channel = supabase
@@ -91,7 +92,7 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [fetchActivePanics]);
 
   const updateMarkerPosition = (sessionId: string, lat: number, lng: number) => {
     const marker = markersRef.current.get(sessionId);
@@ -120,7 +121,6 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
 
     activePanics.forEach((panic) => {
       let marker = currentMarkers.get(panic.id);
-      const isLive = panic.status === "active";
       const lat = panic.last_known_lat;
       const lng = panic.last_known_lng;
 
@@ -129,7 +129,6 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
         el.className = "panic-alert-marker";
         el.style.cursor = "pointer";
 
-        // Avatar-based marker with red status ring
         const avatarContent = panic.avatar_url
           ? `<img src="${panic.avatar_url}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
              <div class="w-full h-full bg-red-600 items-center justify-center text-white text-sm font-bold" style="display:none">${getInitial(panic.user_name)}</div>`
@@ -137,20 +136,17 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
 
         el.innerHTML = `
           <div class="relative flex flex-col items-center">
-            ${isLive ? `
-              <div class="absolute -inset-3 rounded-full bg-red-500/20 animate-ping" style="animation-duration:2s"></div>
-              <div class="absolute -inset-1.5 rounded-full bg-red-500/10"></div>
-            ` : ""}
-            <div class="relative w-10 h-10 rounded-full border-[3px] ${isLive ? "border-red-500" : "border-red-400/50"} shadow-lg overflow-hidden bg-neutral-900">
+            <div class="absolute -inset-3 rounded-full bg-red-500/20 animate-ping" style="animation-duration:2s"></div>
+            <div class="absolute -inset-1.5 rounded-full bg-red-500/10"></div>
+            <div class="relative w-10 h-10 rounded-full border-[3px] border-red-500 shadow-lg overflow-hidden bg-neutral-900">
               ${avatarContent}
             </div>
-            <div class="mt-0.5 px-1.5 py-px rounded-full ${isLive ? "bg-neutral-900/90 border border-red-500/40" : "bg-neutral-700/80"} shadow-sm">
-              <span class="text-[9px] font-semibold ${isLive ? "text-red-400" : "text-neutral-400"} uppercase tracking-wider">${isLive ? "LIVE" : "Ended"}</span>
+            <div class="mt-0.5 px-1.5 py-px rounded-full bg-neutral-900/90 border border-red-500/40 shadow-sm">
+              <span class="text-[9px] font-semibold text-red-400 uppercase tracking-wider">LIVE</span>
             </div>
           </div>
         `;
 
-        // Dark popup card
         const popupContent = document.createElement("div");
         popupContent.innerHTML = `
           <div style="
@@ -158,8 +154,8 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
             box-shadow:0 8px 32px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.06);
           ">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-              ${isLive ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef4444"></span>` : ""}
-              <span style="font-size:11px;font-weight:600;color:${isLive ? '#f87171' : '#a3a3a3'};letter-spacing:0.02em">${panic.incident_type || "Panic Alert"}</span>
+              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef4444"></span>
+              <span style="font-size:11px;font-weight:600;color:#f87171;letter-spacing:0.02em">${panic.incident_type || "Panic Alert"}</span>
             </div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
               ${panic.avatar_url ? `<img src="${panic.avatar_url}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid rgba(239,68,68,0.3)" />` : `<div style="width:24px;height:24px;border-radius:50%;background:#dc2626;display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:600">${getInitial(panic.user_name)}</div>`}
@@ -208,6 +204,7 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
     <PanicDetailSheet
       open={detailOpen}
       onClose={() => setDetailOpen(false)}
+      onResolved={fetchActivePanics}
       panic={selectedPanic}
     />
   );

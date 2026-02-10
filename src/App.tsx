@@ -28,6 +28,7 @@ import NotificationSettings from "./pages/NotificationSettings";
 import AmberAlertChat from "./pages/AmberAlertChat";
 import SafetyDashboard from "./pages/SafetyDashboard";
 import ActivityHistory from "./pages/ActivityHistory";
+import History from "./pages/History";
 import NotFound from "./pages/NotFound";
 
 // Configure React Query with production-ready defaults
@@ -77,6 +78,7 @@ function AnimatedRoutes() {
           <Route path="/amber-chat/:roomId" element={<ProtectedRoute><AmberAlertChat /></ProtectedRoute>} />
           <Route path="/safety" element={<ProtectedRoute><SafetyDashboard /></ProtectedRoute>} />
           <Route path="/activity" element={<ProtectedRoute><ActivityHistory /></ProtectedRoute>} />
+          <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AnimatePresence>
