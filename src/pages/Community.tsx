@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { MessageCircle } from "lucide-react";
+
 import { BottomNav } from "@/components/BottomNav";
 import {
   CommunityTopBar,
@@ -19,6 +19,7 @@ import {
 } from "@/components/community";
 import { useCommunityPosts, type CommunityPost } from "@/hooks/useCommunityPosts";
 import { useCommunityThreads, type CommunityThread } from "@/hooks/useCommunityThreads";
+import { CommunityEmptyState } from "@/components/empty-states/CommunityEmptyState";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -119,13 +120,7 @@ export default function Community() {
               </div>
             )}
             {posts.length === 0 && threads.length === 0 ? (
-              <div className="text-center py-12 bg-card rounded-xl border border-border">
-                <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="font-medium">No posts yet</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Be the first to share a community update
-                </p>
-              </div>
+              <CommunityEmptyState onCreatePost={() => setShowCreatePost(true)} />
             ) : (
               <div className="space-y-4">
                 <AnimatePresence>
