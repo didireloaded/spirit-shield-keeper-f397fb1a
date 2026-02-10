@@ -22,7 +22,7 @@ const filters: { key: ThreadFilter; label: string; icon: typeof Radio }[] = [
 
 export function CommunityFilterBar({ value, onChange, counts }: CommunityFilterBarProps) {
   return (
-    <div className="flex items-center gap-1.5 px-4 py-2 overflow-x-auto no-scrollbar">
+    <div className="flex items-center gap-1.5 px-4 py-2 overflow-x-auto scrollbar-hide">
       {filters.map((f) => {
         const isActive = value === f.key;
         const Icon = f.icon;
