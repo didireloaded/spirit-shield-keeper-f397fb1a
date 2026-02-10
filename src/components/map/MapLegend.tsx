@@ -10,7 +10,7 @@ import { haptics } from "@/lib/haptics";
 
 const incidentTypes = [
   { type: "panic", color: "#ef4444", label: "Emergency Alert", icon: "🚨" },
-  { type: "amber", color: "#f97316", label: "Amber Alert", icon: "⚠️" },
+  { type: "amber", color: "#f59e0b", label: "Amber Alert", icon: "🔍" },
   { type: "crash", color: "#eab308", label: "Vehicle Crash", icon: "🚗" },
   { type: "robbery", color: "#8b5cf6", label: "Robbery", icon: "💰" },
   { type: "assault", color: "#ec4899", label: "Assault", icon: "⚡" },

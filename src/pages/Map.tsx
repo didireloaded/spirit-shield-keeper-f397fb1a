@@ -33,6 +33,7 @@ import { SpeedCompass } from "@/components/map/SpeedCompass";
 import { QuickActionsMenu } from "@/components/map/QuickActionsMenu";
 import { PanicAlertMapLayer } from "@/components/map/PanicAlertMapLayer";
 import { LookAfterMeMapLayer } from "@/components/map/LookAfterMeMapLayer";
+import { AmberAlertMapLayer } from "@/components/map/AmberAlertMapLayer";
 
 // Hooks
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -296,6 +297,9 @@ const Map = () => {
 
         {/* L6: Look After Me Tracking Layer */}
         <LookAfterMeMapLayer map={mapInstanceRef.current} />
+
+        {/* L6: Amber Alert Markers (informational, no banners) */}
+        <AmberAlertMapLayer map={mapInstanceRef.current} />
 
         {/* ── L3: PRIMARY MAP CONTROLS (search, online pill, legend, back) ── */}
         <MapTopControls />

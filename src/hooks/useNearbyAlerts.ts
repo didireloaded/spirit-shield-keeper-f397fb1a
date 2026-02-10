@@ -29,7 +29,7 @@ export function useNearbyAlerts({
   userLng,
   alerts,
   radiusMeters = 500,
-  highPriorityTypes = ["panic", "amber", "assault", "kidnapping"],
+  highPriorityTypes = ["panic", "assault", "kidnapping"],
   cooldownMs = 600000, // 10 minutes
 }: UseNearbyAlertsOptions) {
   const [nearbyAlert, setNearbyAlert] = useState<NearbyAlert | null>(null);
@@ -52,6 +52,9 @@ export function useNearbyAlerts({
       
       // Skip non-active alerts
       if (alert.status && alert.status !== "active") continue;
+
+      // Amber alerts are map-marker-only — never show as banner
+      if (alert.type === "amber") continue;
 
       const distance = distanceInMeters(
         userLat,
