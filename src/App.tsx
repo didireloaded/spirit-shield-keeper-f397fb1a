@@ -9,6 +9,8 @@ import { EmergencyProvider } from "@/contexts/EmergencyContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { NetworkStatus } from "@/components/NetworkStatus";
 import { ErrorBoundary } from "@/core/providers/ErrorBoundary";
+import { NotificationOnboarding } from "@/components/notifications/NotificationOnboarding";
+import { useNotificationOnboarding } from "@/hooks/useNotificationOnboarding";
 import { TIME } from "@/core/config/constants";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -36,27 +38,36 @@ const queryClient = new QueryClient({
   },
 });
 
+function NotificationOnboardingWrapper() {
+  const { shouldShow, dismiss } = useNotificationOnboarding();
+  if (!shouldShow) return null;
+  return <NotificationOnboarding onComplete={dismiss} />;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
-        <Route path="/home" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-        <Route path="/map" element={<ProtectedRoute><Map /></ProtectedRoute>} />
-        <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
-        <Route path="/look-after-me" element={<ProtectedRoute><LookAfterMe /></ProtectedRoute>} />
-        <Route path="/authorities" element={<ProtectedRoute><Authorities /></ProtectedRoute>} />
-        <Route path="/messages" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/watchers" element={<ProtectedRoute><Watchers /></ProtectedRoute>} />
-        <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
-        <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
-        <Route path="/amber-chat/:roomId" element={<ProtectedRoute><AmberAlertChat /></ProtectedRoute>} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AnimatePresence>
+    <>
+      <NotificationOnboardingWrapper />
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
+          <Route path="/home" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+          <Route path="/map" element={<ProtectedRoute><Map /></ProtectedRoute>} />
+          <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
+          <Route path="/look-after-me" element={<ProtectedRoute><LookAfterMe /></ProtectedRoute>} />
+          <Route path="/authorities" element={<ProtectedRoute><Authorities /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/watchers" element={<ProtectedRoute><Watchers /></ProtectedRoute>} />
+          <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
+          <Route path="/settings/notifications" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
+          <Route path="/amber-chat/:roomId" element={<ProtectedRoute><AmberAlertChat /></ProtectedRoute>} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AnimatePresence>
+    </>
   );
 }
 
