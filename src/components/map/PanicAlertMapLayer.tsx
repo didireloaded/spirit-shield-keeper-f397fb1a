@@ -4,10 +4,10 @@
  * Shows live/ended status and persists last known location
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import { supabase } from "@/integrations/supabase/client";
-import { useFormattedLocation } from "@/lib/locationFormatter";
+import { PanicDetailSheet } from "./PanicDetailSheet";
 
 interface PanicAlert {
   id: string;
@@ -22,6 +22,7 @@ interface PanicAlert {
   created_at: string;
   ended_at?: string | null;
   user_name?: string;
+  chat_room_id?: string | null;
 }
 
 interface PanicAlertMapLayerProps {
@@ -29,12 +30,12 @@ interface PanicAlertMapLayerProps {
   currentUserId?: string;
 }
 
-const PANIC_SOURCE = "panic-alerts-live";
-const PANIC_TRAIL_SOURCE = "panic-trails-live";
-
 export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerProps) {
   const [activePanics, setActivePanics] = useState<PanicAlert[]>([]);
+  const [selectedPanic, setSelectedPanic] = useState<PanicAlert | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const popupsRef = useRef<Map<string, mapboxgl.Popup>>(new Map());
   const trailsRef = useRef<Map<string, [number, number][]>>(new Map());
 
   // Fetch active panic sessions
@@ -45,7 +46,7 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
         .select(`
           id, user_id, status, initial_lat, initial_lng,
           last_known_lat, last_known_lng, incident_type,
-          location_name, created_at, ended_at
+          location_name, created_at, ended_at, chat_room_id
         `)
         .in("status", ["active", "ended"])
         .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
@@ -53,7 +54,6 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
         .limit(50);
 
       if (data) {
-        // Fetch user names
         const userIds = [...new Set(data.map((d) => d.user_id))];
         const { data: profiles } = await supabase
           .from("profiles")
@@ -73,7 +73,6 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
 
     fetchActivePanics();
 
-    // Subscribe to real-time changes
     const channel = supabase
       .channel("panic-sessions-map")
       .on(
@@ -86,11 +85,9 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
         { event: "INSERT", schema: "public", table: "panic_location_logs" },
         (payload) => {
           const log = payload.new as any;
-          // Update trail
           const existing = trailsRef.current.get(log.panic_session_id) || [];
           existing.push([log.lng, log.lat]);
           trailsRef.current.set(log.panic_session_id, existing);
-          // Update marker position
           updateMarkerPosition(log.panic_session_id, log.lat, log.lng);
         }
       )
@@ -108,6 +105,13 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
     }
   };
 
+  const handleViewDetails = useCallback((panic: PanicAlert) => {
+    // Close any open popups
+    popupsRef.current.forEach((p) => p.remove());
+    setSelectedPanic(panic);
+    setDetailOpen(true);
+  }, []);
+
   // Render markers on map
   useEffect(() => {
     if (!map) return;
@@ -119,6 +123,8 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
       if (!activePanics.find((p) => p.id === id)) {
         marker.remove();
         currentMarkers.delete(id);
+        popupsRef.current.get(id)?.remove();
+        popupsRef.current.delete(id);
       }
     });
 
@@ -149,17 +155,54 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
           </div>
         `;
 
+        // New dark popup card — no tail, no white border
+        const popupContent = document.createElement("div");
+        popupContent.innerHTML = `
+          <div class="panic-info-card" style="
+            background: #141414;
+            border-radius: 12px;
+            padding: 12px 14px;
+            min-width: 200px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.06);
+          ">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+              ${isLive ? `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ef4444;box-shadow:0 0 6px #ef4444"></span>` : ""}
+              <span style="font-size:11px;font-weight:600;color:${isLive ? '#f87171' : '#a3a3a3'};letter-spacing:0.02em">${panic.incident_type || "Panic Alert"}</span>
+            </div>
+            <p style="font-size:13px;color:#e5e5e5;font-weight:500;margin:0 0 4px 0">${panic.user_name}</p>
+            <p style="font-size:11px;color:#737373;margin:0">${panic.location_name || "Tracking location"}</p>
+            <div style="margin-top:10px;display:flex;gap:6px">
+              <button class="panic-popup-details-btn" style="
+                flex:1;
+                padding:6px 0;
+                border-radius:8px;
+                background:rgba(239,68,68,0.12);
+                border:1px solid rgba(239,68,68,0.2);
+                color:#fca5a5;
+                font-size:11px;
+                font-weight:500;
+                cursor:pointer;
+                transition:background 0.15s;
+              ">View details</button>
+            </div>
+          </div>
+        `;
+
+        // Wire up the "View details" button
+        const detailsBtn = popupContent.querySelector(".panic-popup-details-btn");
+        if (detailsBtn) {
+          detailsBtn.addEventListener("click", () => handleViewDetails(panic));
+        }
+
         const popup = new mapboxgl.Popup({
           offset: 25,
           closeButton: false,
-          className: "panic-popup",
-        }).setHTML(`
-          <div class="p-2.5 text-sm" style="background:#1a1a1a;color:#e5e5e5;border-radius:10px;border:1px solid rgba(239,68,68,0.3)">
-            <p class="font-semibold" style="color:#f87171;font-size:12px">● ${panic.incident_type || "Panic Alert"}</p>
-            <p style="font-size:11px;margin-top:4px;opacity:0.8">${panic.user_name}</p>
-            <p style="font-size:10px;margin-top:2px;opacity:0.5">${panic.location_name || "Location updating..."}</p>
-          </div>
-        `);
+          className: "panic-popup-modern",
+          maxWidth: "240px",
+        }).setDOMContent(popupContent);
+
+        popupsRef.current.set(panic.id, popup);
 
         marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
           .setLngLat([lng, lat])
@@ -175,10 +218,18 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
     return () => {
       currentMarkers.forEach((marker) => marker.remove());
       currentMarkers.clear();
+      popupsRef.current.forEach((p) => p.remove());
+      popupsRef.current.clear();
     };
-  }, [map, activePanics]);
+  }, [map, activePanics, handleViewDetails]);
 
-  return null;
+  return (
+    <PanicDetailSheet
+      open={detailOpen}
+      onClose={() => setDetailOpen(false)}
+      panic={selectedPanic}
+    />
+  );
 }
 
 export default PanicAlertMapLayer;
