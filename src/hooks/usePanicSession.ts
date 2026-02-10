@@ -190,20 +190,29 @@ export const usePanicSession = () => {
 
     setError(null);
 
-    // Get current position first
+    // Get position fast — accept cached position to avoid blocking
     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      // First try a fast cached position
       navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        enableHighAccuracy: false,
+        timeout: 3000,
+        maximumAge: 60000, // Accept up to 1 minute old
       });
-    }).catch((err) => {
-      setError("Unable to get location. Please enable GPS.");
-      console.error("[Panic] Location error:", err);
-      return null;
+    }).catch(async () => {
+      // Fallback: try high accuracy with short timeout
+      return new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 120000,
+        });
+      }).catch(() => null);
     });
 
-    if (!position) return null;
+    if (!position) {
+      setError("Unable to get location. Please enable GPS.");
+      return null;
+    }
 
     const { latitude, longitude } = position.coords;
     const deviceInfo = {
@@ -365,18 +374,23 @@ export const usePanicSession = () => {
     toast.info("Panic alert cancelled.");
   }, [endPanic]);
 
-  // Clean up on unmount
+  // Clean up on unmount — only if session is NOT active
+  // This prevents navigation from killing an active recording
   useEffect(() => {
     return () => {
-      if (chunkIntervalRef.current) {
-        clearInterval(chunkIntervalRef.current);
+      if (!sessionIdRef.current) {
+        // No active session, safe to clean up
+        if (chunkIntervalRef.current) {
+          clearInterval(chunkIntervalRef.current);
+        }
+        if (locationIntervalRef.current) {
+          clearInterval(locationIntervalRef.current);
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+        }
       }
-      if (locationIntervalRef.current) {
-        clearInterval(locationIntervalRef.current);
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
+      // If session IS active, keep recording alive across navigation
     };
   }, []);
 
