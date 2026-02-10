@@ -1,10 +1,10 @@
 /**
  * Community Screen
- * Filtered threaded view: Panic / Amber / Incident channels
- * Plus existing community posts in "All" view
+ * Unified single feed with origin-type icons on each thread card.
+ * No channel separation — all threads in one scrollable feed.
  */
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { MessageCircle } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
@@ -15,29 +15,22 @@ import {
   CreatePostSheet,
   PostDetailSheet,
   FeedSkeleton,
-  CommunityFilterBar,
   CommunityThreadCard,
 } from "@/components/community";
 import { useCommunityPosts, type CommunityPost } from "@/hooks/useCommunityPosts";
-import { useCommunityThreads, type CommunityThread, type ThreadFilter } from "@/hooks/useCommunityThreads";
+import { useCommunityThreads, type CommunityThread } from "@/hooks/useCommunityThreads";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export default function Community() {
   const { posts, loading: postsLoading, creating, createPost, uploadImage } = useCommunityPosts();
-  const { threads, allThreads, loading: threadsLoading, filter, setFilter, hasMore, loadMore } = useCommunityThreads();
+  const { threads: allThreads, loading: threadsLoading, hasMore, loadMore } = useCommunityThreads();
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
   const [showCreatePost, setShowCreatePost] = useState(false);
 
+  // Always show all threads — unified feed, no filter
+  const threads = allThreads;
   const loading = postsLoading || threadsLoading;
-
-  // Counts per filter for the bar
-  const counts = useMemo(() => ({
-    all: allThreads.length,
-    panic: allThreads.filter((t) => t.type === "panic").length,
-    amber: allThreads.filter((t) => t.type === "amber").length,
-    incident: allThreads.filter((t) => t.type === "incident").length,
-  }), [allThreads]);
 
   const handleShare = async (post: CommunityPost) => {
     try {
@@ -83,28 +76,19 @@ export default function Community() {
   };
 
   const handleOpenThread = (thread: CommunityThread) => {
-    // For panic threads with chat rooms, could navigate to chat
-    // For now, expand is the interaction
     console.log("[Community] Open thread:", thread.id, thread.type);
   };
-
-  const showPosts = filter === "all";
 
   return (
     <div className="min-h-screen bg-background pb-24">
       <CommunityTopBar />
-
-      {/* Filter bar — sticky below top bar */}
-      <div className="sticky top-[57px] z-30 bg-background/95 backdrop-blur-md border-b border-border">
-        <CommunityFilterBar value={filter} onChange={setFilter} counts={counts} />
-      </div>
 
       <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
         {loading ? (
           <FeedSkeleton />
         ) : (
           <>
-            {/* Threads section */}
+            {/* Unified thread feed */}
             {threads.length > 0 && (
               <div className="space-y-3">
                 <AnimatePresence>
@@ -126,50 +110,35 @@ export default function Community() {
               </div>
             )}
 
-            {/* Community posts — only in "All" view */}
-            {showPosts && (
-              <>
-                {posts.length > 0 && threads.length > 0 && (
-                  <div className="flex items-center gap-2 pt-2">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Community Posts</span>
-                    <div className="h-px flex-1 bg-border" />
-                  </div>
-                )}
-                {posts.length === 0 && threads.length === 0 ? (
-                  <div className="text-center py-12 bg-card rounded-xl border border-border">
-                    <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="font-medium">No posts yet</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Be the first to share a community update
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <AnimatePresence>
-                      {posts.map((post, index) => (
-                        <PostCard
-                          key={post.id}
-                          post={post}
-                          index={index}
-                          onClick={() => setSelectedPost(post)}
-                          onShare={() => handleShare(post)}
-                        />
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                )}
-              </>
+            {/* Community posts */}
+            {posts.length > 0 && threads.length > 0 && (
+              <div className="flex items-center gap-2 pt-2">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Community Posts</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
             )}
-
-            {/* Empty state for filtered views with no threads */}
-            {!showPosts && threads.length === 0 && (
+            {posts.length === 0 && threads.length === 0 ? (
               <div className="text-center py-12 bg-card rounded-xl border border-border">
                 <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="font-medium">No {filter} threads</p>
+                <p className="font-medium">No posts yet</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  There are no {filter} threads to display right now
+                  Be the first to share a community update
                 </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <AnimatePresence>
+                  {posts.map((post, index) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      index={index}
+                      onClick={() => setSelectedPost(post)}
+                      onShare={() => handleShare(post)}
+                    />
+                  ))}
+                </AnimatePresence>
               </div>
             )}
           </>

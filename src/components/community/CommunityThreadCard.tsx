@@ -1,7 +1,7 @@
 /**
  * Community Thread Card
- * Type-aware card with accent line, type badge, status badge, location.
- * Collapsed by default — shows title, location, status, comment count.
+ * Unified feed card with subtle origin-type icon.
+ * Collapsed by default — shows icon, title, location, status, comment count.
  */
 
 import { useState } from "react";
@@ -17,28 +17,24 @@ interface CommunityThreadCardProps {
 }
 
 const typeConfig: Record<ThreadType, {
-  accentClass: string;
-  badgeClass: string;
-  label: string;
   icon: typeof Radio;
+  iconClass: string;
+  label: string;
 }> = {
   panic: {
-    accentClass: "border-l-destructive",
-    badgeClass: "bg-destructive/10 text-destructive border-destructive/20",
-    label: "Panic",
     icon: Radio,
+    iconClass: "text-destructive",
+    label: "Panic",
   },
   amber: {
-    accentClass: "border-l-warning",
-    badgeClass: "bg-warning/10 text-warning border-warning/30",
-    label: "Amber",
     icon: Search,
+    iconClass: "text-warning",
+    label: "Amber",
   },
   incident: {
-    accentClass: "border-l-muted-foreground",
-    badgeClass: "bg-secondary text-muted-foreground border-border",
-    label: "Incident",
     icon: AlertTriangle,
+    iconClass: "text-muted-foreground",
+    label: "Incident",
   },
 };
 
@@ -74,8 +70,7 @@ export function CommunityThreadCard({ thread, onOpen }: CommunityThreadCardProps
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "bg-card border border-border rounded-2xl overflow-hidden shadow-sm border-l-4 transition-colors",
-        config.accentClass,
+        "bg-card border border-border rounded-2xl overflow-hidden shadow-sm transition-colors",
         muted && "opacity-60"
       )}
     >
@@ -84,24 +79,23 @@ export function CommunityThreadCard({ thread, onOpen }: CommunityThreadCardProps
         onClick={() => setExpanded((e) => !e)}
         className="w-full text-left p-4 flex items-start gap-3"
       >
-        <div className="flex-1 min-w-0 space-y-2">
-          {/* Badges row */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className={cn("text-[10px] px-2 py-0.5", config.badgeClass)}>
-              <Icon className="w-3 h-3 mr-1" />
-              {config.label}
-            </Badge>
-            <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium", statusConf.className)}>
+        {/* Origin icon */}
+        <div className="mt-0.5 shrink-0">
+          <Icon className={cn("w-4 h-4", config.iconClass)} />
+        </div>
+
+        <div className="flex-1 min-w-0 space-y-1.5">
+          {/* Title + status */}
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground leading-snug truncate flex-1">
+              {thread.title}
+            </h3>
+            <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0", statusConf.className)}>
               {statusConf.label}
             </span>
           </div>
 
-          {/* Title */}
-          <h3 className="text-sm font-semibold text-foreground leading-snug truncate">
-            {thread.title}
-          </h3>
-
-          {/* Location + time */}
+          {/* Location + time + comments */}
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {thread.location && (
               <span className="flex items-center gap-1 truncate max-w-[140px]">

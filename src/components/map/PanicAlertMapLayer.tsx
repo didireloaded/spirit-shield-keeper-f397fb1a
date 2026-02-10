@@ -137,14 +137,14 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
         el.innerHTML = `
           <div class="relative flex flex-col items-center">
             ${isLive ? `
-              <div class="absolute -inset-3 rounded-full bg-red-500/30 animate-ping"></div>
-              <div class="absolute -inset-1.5 rounded-full bg-red-500/20"></div>
+              <div class="absolute -inset-3 rounded-full bg-red-500/20 animate-ping" style="animation-duration:2s"></div>
+              <div class="absolute -inset-1.5 rounded-full bg-red-500/10"></div>
             ` : ""}
-            <div class="relative w-8 h-8 rounded-full ${isLive ? "bg-red-500" : "bg-gray-500"} border-2 border-white shadow-lg flex items-center justify-center">
-              <span class="text-white text-sm">🚨</span>
+            <div class="relative w-7 h-7 rounded-full ${isLive ? "bg-neutral-900" : "bg-neutral-600"} border border-red-500/60 shadow-md flex items-center justify-center">
+              <span class="text-red-400 text-xs">●</span>
             </div>
-            <div class="mt-1 px-2 py-0.5 rounded-full ${isLive ? "bg-red-500" : "bg-gray-500"} shadow-md">
-              <span class="text-[10px] font-bold text-white uppercase">${isLive ? "LIVE" : "Ended"}</span>
+            <div class="mt-0.5 px-1.5 py-px rounded-full ${isLive ? "bg-neutral-900/90 border border-red-500/40" : "bg-neutral-700/80"} shadow-sm">
+              <span class="text-[9px] font-semibold ${isLive ? "text-red-400" : "text-neutral-400"} uppercase tracking-wider">${isLive ? "LIVE" : "Ended"}</span>
             </div>
           </div>
         `;
@@ -154,13 +154,10 @@ export function PanicAlertMapLayer({ map, currentUserId }: PanicAlertMapLayerPro
           closeButton: false,
           className: "panic-popup",
         }).setHTML(`
-          <div class="p-2 text-sm">
-            <p class="font-bold text-red-600">🚨 ${panic.incident_type || "Panic Alert"}</p>
-            <p class="text-xs mt-1">${panic.user_name}</p>
-            <p class="text-xs opacity-70 mt-0.5">${panic.location_name || "Location updating..."}</p>
-            <p class="text-xs mt-1 font-medium ${isLive ? "text-red-600" : "text-gray-500"}">
-              ${isLive ? "● Live" : "● Ended"}
-            </p>
+          <div class="p-2.5 text-sm" style="background:#1a1a1a;color:#e5e5e5;border-radius:10px;border:1px solid rgba(239,68,68,0.3)">
+            <p class="font-semibold" style="color:#f87171;font-size:12px">● ${panic.incident_type || "Panic Alert"}</p>
+            <p style="font-size:11px;margin-top:4px;opacity:0.8">${panic.user_name}</p>
+            <p style="font-size:10px;margin-top:2px;opacity:0.5">${panic.location_name || "Location updating..."}</p>
           </div>
         `);
 
