@@ -22,6 +22,7 @@ import {
   Camera,
   Loader2,
   MapPin,
+  Clock,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -395,6 +396,22 @@ const Profile = () => {
               </button>
             </div>
           )}
+        </motion.div>
+
+        {/* History Link */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
+        >
+          <Button
+            variant="outline"
+            onClick={() => navigate("/history")}
+            className="w-full h-12 rounded-xl gap-2"
+          >
+            <Clock className="w-5 h-5" />
+            History
+          </Button>
         </motion.div>
 
         {/* Sign Out */}
