@@ -24,7 +24,7 @@ export function useServiceWorkerPush() {
       .register("/notification-worker.js")
       .then((reg) => {
         setRegistration(reg);
-        return reg.pushManager.getSubscription();
+        return (reg as any).pushManager?.getSubscription?.() ?? null;
       })
       .then((sub) => {
         if (sub) setPushSubscription(sub);
@@ -46,7 +46,7 @@ export function useServiceWorkerPush() {
 
       // Subscribe to push (VAPID key would be needed for real web push)
       // For now, store a subscription record so the server knows this user wants push
-      const sub = await registration.pushManager.getSubscription();
+      const sub = await (registration as any).pushManager?.getSubscription?.();
       if (sub) {
         setPushSubscription(sub);
         await savePushSubscription(sub);

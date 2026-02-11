@@ -20,7 +20,7 @@ import { MapSearchBar } from "@/components/map/MapSearchBar";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MapSkeleton } from "@/components/map/MapSkeleton";
 import { ReportsBottomSheet } from "@/components/map/ReportsBottomSheet";
-import { ReportFab } from "@/components/map/ReportFab";
+// ReportFab removed — QuickActionsMenu handles reporting
 import { IncidentReportModal } from "@/components/map/IncidentReportModal";
 import { CrosshairIndicator } from "@/components/map/CrosshairIndicator";
 // ActiveTripBanner removed — Look After Me is map-marker-only, no banner
@@ -301,21 +301,30 @@ const Map = () => {
         {/* L6: Amber Alert Markers (informational, no banners) */}
         <AmberAlertMapLayer map={mapInstanceRef.current} />
 
-        {/* ── L3: PRIMARY MAP CONTROLS (search, online pill, legend, back) ── */}
-        <MapTopControls />
+        {/* ═══ TOP ROW: Back (left) · Search (center) · Legend (right) ═══ */}
+        <div className="fixed top-[var(--map-top-row)] left-[var(--map-inset)] z-[var(--z-map-controls)] pointer-events-auto">
+          <MapTopControls />
+        </div>
 
-        {/* L2: Look After Me — no banner, map-only (see LookAfterMeMapLayer) */}
-
-        {/* L3: Search Bar */}
         <MapSearchBar
           onLocationSelect={handleSearchSelect}
           incidents={allAlerts}
         />
 
-        {/* L3: Map Legend */}
         <MapLegend />
 
-        {/* ── L4: CONTEXTUAL FEEDBACK ── */}
+        {/* ═══ SECOND ROW: Online users (left) · Ghost mode (right) ═══ */}
+        <UserLocationsList
+          locations={userLocations}
+          currentUserLocation={latitude && longitude ? { lat: latitude, lng: longitude } : undefined}
+          onUserSelect={handleUserSelect}
+        />
+
+        <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] right-[var(--map-inset)] z-[var(--z-map-controls)]">
+          <GhostModeToggle isGhost={ghostMode} onChange={handleGhostToggle} />
+        </div>
+
+        {/* ═══ CONTEXTUAL FEEDBACK (auto-dismiss) ═══ */}
         {latitude && longitude && !ghostMode && (
           <LiveLocationLabel
             latitude={latitude}
@@ -325,25 +334,13 @@ const Map = () => {
           />
         )}
 
-        {/* L4: Speed & Compass */}
+        {/* Speed & Compass — only shows when moving */}
         <SpeedCompass heading={heading} speed={speed} />
 
-        {/* L3: Ghost Mode Toggle */}
-        <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap)+44px+var(--map-element-gap))] right-[var(--map-inset)] z-[var(--z-map-controls)]">
-          <GhostModeToggle isGhost={ghostMode} onChange={handleGhostToggle} />
-        </div>
-
-        {/* L3: Online Users List */}
-        <UserLocationsList
-          locations={userLocations}
-          currentUserLocation={latitude && longitude ? { lat: latitude, lng: longitude } : undefined}
-          onUserSelect={handleUserSelect}
-        />
-
-        {/* L2: Near You Alert Strip */}
+        {/* ═══ NEAR YOU ALERT STRIP ═══ */}
         <AnimatePresence>
           {showNearbyStrip && nearbyAlert && (
-            <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] left-[var(--map-inset)] right-[var(--map-inset)] z-[var(--z-map-critical)]">
+            <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap)+44px+var(--map-element-gap))] left-[var(--map-inset)] right-[var(--map-inset)] z-[var(--z-map-critical)]">
               <NearYouStrip
                 alert={nearbyAlert}
                 isHighPriority={isHighPriority}
@@ -354,7 +351,7 @@ const Map = () => {
           )}
         </AnimatePresence>
 
-        {/* ── L5: MAP INTERACTION BUTTONS ── */}
+        {/* ═══ RIGHT-SIDE MAP CONTROLS (zoom, recenter, layers) ═══ */}
         <MapControls
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
@@ -363,7 +360,7 @@ const Map = () => {
           layersActive={heatmapEnabled}
         />
 
-        {/* L5: Quick Actions Menu */}
+        {/* ═══ QUICK ACTIONS FAB (bottom-right) ═══ */}
         <QuickActionsMenu
           onReportIncident={handleAddIncidentToggle}
           onEmergencyCall={() => window.open("tel:10111")}
@@ -378,10 +375,7 @@ const Map = () => {
           onToggleWatchers={() => toast.info("Watchers feature coming soon")}
         />
 
-        {/* L5: Report FAB */}
-        <ReportFab isActive={showAddPin} onClick={handleAddIncidentToggle} />
-
-        {/* L4: Crosshair for pin placement */}
+        {/* Crosshair for pin placement */}
         <CrosshairIndicator visible={showAddPin && !selectedLocation} />
 
         {/* ── L1: SYSTEM MODALS ── */}
@@ -392,7 +386,7 @@ const Map = () => {
           onSuccess={refetchMarkers}
         />
 
-        {/* L5: Bottom Sheet */}
+        {/* Bottom Sheet */}
         <ReportsBottomSheet
           reports={markers}
           userLocation={latitude && longitude ? { lat: latitude, lng: longitude } : null}
