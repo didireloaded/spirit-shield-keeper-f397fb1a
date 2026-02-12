@@ -130,7 +130,8 @@ export function ReportsBottomSheet({
 
   return (
     <motion.div
-      className="fixed bottom-[var(--map-bottom-safe)] left-0 right-0 z-[var(--z-map-buttons)]"
+      className="fixed left-0 right-0 z-[var(--z-map-buttons)]"
+      style={{ bottom: "var(--map-bottom-safe)" }}
       drag="y"
       dragConstraints={{ top: 0, bottom: 0 }}
       dragElastic={{ top: 0.1, bottom: 0.3 }}

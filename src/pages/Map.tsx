@@ -2,6 +2,10 @@
  * Map Page - Clean fullscreen map with floating controls
  * Map is the hero, everything floats on top
  * 
+ * MOBILE: Native-style layout with unified top bar, single right control stack,
+ * draggable bottom sheet, and floating report FAB.
+ * DESKTOP: Richer layout with scattered controls preserved.
+ * 
  * CRITICAL: All callbacks passed to MapboxMap must be stable refs
  * to prevent the map from re-initializing on every render.
  */
@@ -20,10 +24,8 @@ import { MapSearchBar } from "@/components/map/MapSearchBar";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MapSkeleton } from "@/components/map/MapSkeleton";
 import { ReportsBottomSheet } from "@/components/map/ReportsBottomSheet";
-// ReportFab removed — QuickActionsMenu handles reporting
 import { IncidentReportModal } from "@/components/map/IncidentReportModal";
 import { CrosshairIndicator } from "@/components/map/CrosshairIndicator";
-// ActiveTripBanner removed — Look After Me is map-marker-only, no banner
 import { NearYouStrip } from "@/components/map/NearYouStrip";
 import { UserAvatarMarkers } from "@/components/map/UserAvatarMarkers";
 import { LiveLocationLabel } from "@/components/map/LiveLocationLabel";
@@ -34,6 +36,11 @@ import { QuickActionsMenu } from "@/components/map/QuickActionsMenu";
 import { PanicAlertMapLayer } from "@/components/map/PanicAlertMapLayer";
 import { LookAfterMeMapLayer } from "@/components/map/LookAfterMeMapLayer";
 import { AmberAlertMapLayer } from "@/components/map/AmberAlertMapLayer";
+
+// Mobile-native components
+import { MobileMapTopBar } from "@/components/map/MobileMapTopBar";
+import { MobileMapControls } from "@/components/map/MobileMapControls";
+import { MobileReportFab } from "@/components/map/MobileReportFab";
 
 // Hooks
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -46,11 +53,14 @@ import { useMapAlerts } from "@/hooks/useMapAlerts";
 import { useSelectedMarker } from "@/hooks/useSelectedMarker";
 import { useRealtimeLocations, type UserLocation } from "@/hooks/useRealtimeLocations";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const Map = () => {
+  const isMobile = useIsMobile();
+
   // URL params for navigating to specific location
   const [searchParams] = useSearchParams();
 
@@ -134,15 +144,16 @@ const Map = () => {
     }
   }, [nearbyAlert?.id, isHighPriority, playAlertSound, triggerVibration]);
 
-  // Device orientation for compass
+  // Device orientation for compass (desktop only)
   useEffect(() => {
+    if (isMobile) return; // Skip compass on mobile
     if (!("DeviceOrientationEvent" in window)) return;
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (event.alpha !== null) setHeading(360 - event.alpha);
     };
     window.addEventListener("deviceorientation", handleOrientation);
     return () => window.removeEventListener("deviceorientation", handleOrientation);
-  }, []);
+  }, [isMobile]);
 
   // Track speed from geolocation
   useEffect(() => {
@@ -161,7 +172,7 @@ const Map = () => {
     setIdleRef.current();
   }, []);
 
-  // Navigate to URL params (from "View on Map" in LivePanicFeed)
+  // Navigate to URL params
   useEffect(() => {
     if (!mapInstanceRef.current || hasNavigatedToParams.current || !mapEngine.isIdle) return;
     const lat = searchParams.get("lat");
@@ -298,80 +309,127 @@ const Map = () => {
         {/* L6: Look After Me Tracking Layer */}
         <LookAfterMeMapLayer map={mapInstanceRef.current} />
 
-        {/* L6: Amber Alert Markers (informational, no banners) */}
+        {/* L6: Amber Alert Markers */}
         <AmberAlertMapLayer map={mapInstanceRef.current} />
 
-        {/* ═══ TOP ROW: Back (left) · Search (center) · Legend (right) ═══ */}
-        <div className="fixed top-[var(--map-top-row)] left-[var(--map-inset)] z-[var(--z-map-controls)] pointer-events-auto">
-          <MapTopControls />
-        </div>
+        {/* ═══════════════════════════════════════════════
+            MOBILE LAYOUT — Native-style, minimal, grouped
+            ═══════════════════════════════════════════════ */}
+        {isMobile ? (
+          <>
+            {/* 1️⃣ UNIFIED TOP BAR: Back | Search | Ghost | Info */}
+            <MobileMapTopBar
+              isGhost={ghostMode}
+              onGhostToggle={handleGhostToggle}
+              onLocationSelect={handleSearchSelect}
+              incidents={allAlerts}
+            />
 
-        <MapSearchBar
-          onLocationSelect={handleSearchSelect}
-          incidents={allAlerts}
-        />
+            {/* 2️⃣ RIGHT-SIDE CONTROL STACK: Zoom In, Zoom Out, Locate */}
+            <MobileMapControls
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              onRecenter={handleRecenter}
+            />
 
-        <MapLegend />
+            {/* 3️⃣ REPORT FAB: Above bottom sheet, bottom-right */}
+            <MobileReportFab onPress={handleAddIncidentToggle} />
 
-        {/* ═══ SECOND ROW: Online users (left) · Ghost mode (right) ═══ */}
-        <UserLocationsList
-          locations={userLocations}
-          currentUserLocation={latitude && longitude ? { lat: latitude, lng: longitude } : undefined}
-          onUserSelect={handleUserSelect}
-        />
-
-        <div className="fixed top-[calc(var(--map-top-row)+44px+8px)] right-[var(--map-inset)] z-[var(--z-map-controls)] flex flex-col items-end gap-2">
-          <GhostModeToggle isGhost={ghostMode} onChange={handleGhostToggle} />
-          <SpeedCompass heading={heading} speed={speed} />
-        </div>
-
-        {/* ═══ CONTEXTUAL FEEDBACK (auto-dismiss) ═══ */}
-        {latitude && longitude && !ghostMode && (
-          <LiveLocationLabel
-            latitude={latitude}
-            longitude={longitude}
-            isMoving={speed > 0.5}
-            speed={speed}
-          />
-        )}
-
-        {/* ═══ NEAR YOU ALERT STRIP ═══ */}
-        <AnimatePresence>
-          {showNearbyStrip && nearbyAlert && (
-            <div className="fixed top-[calc(var(--map-top-row)+100px)] left-[var(--map-inset)] right-[var(--map-inset)] z-[var(--z-map-critical)]">
-              <NearYouStrip
-                alert={nearbyAlert}
-                isHighPriority={isHighPriority}
-                onDismiss={() => dismissAlert(nearbyAlert.id)}
-                onViewOnMap={handleViewNearbyOnMap}
-              />
+            {/* 4️⃣ NEAR YOU ALERT (Panic only on mobile — no banners otherwise) */}
+            <AnimatePresence>
+              {showNearbyStrip && nearbyAlert && isHighPriority && (
+                <div
+                  className="fixed left-4 right-4 z-[var(--z-map-critical)]"
+                  style={{ top: "calc(env(safe-area-inset-top, 0px) + 64px)" }}
+                >
+                  <NearYouStrip
+                    alert={nearbyAlert}
+                    isHighPriority={isHighPriority}
+                    onDismiss={() => dismissAlert(nearbyAlert.id)}
+                    onViewOnMap={handleViewNearbyOnMap}
+                  />
+                </div>
+              )}
+            </AnimatePresence>
+          </>
+        ) : (
+          /* ═══════════════════════════════════════════════
+             DESKTOP LAYOUT — Richer, more controls
+             ═══════════════════════════════════════════════ */
+          <>
+            {/* TOP ROW: Back (left) · Search (center) · Legend (right) */}
+            <div className="fixed top-[var(--map-top-row)] left-[var(--map-inset)] z-[var(--z-map-controls)] pointer-events-auto">
+              <MapTopControls />
             </div>
-          )}
-        </AnimatePresence>
 
-        {/* ═══ RIGHT-SIDE MAP CONTROLS (zoom, recenter, layers) ═══ */}
-        <MapControls
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onRecenter={handleRecenter}
-          onToggleLayers={() => setHeatmapEnabled(!heatmapEnabled)}
-          layersActive={heatmapEnabled}
-        />
+            <MapSearchBar
+              onLocationSelect={handleSearchSelect}
+              incidents={allAlerts}
+            />
 
-        {/* ═══ QUICK ACTIONS FAB (bottom-right) ═══ */}
-        <QuickActionsMenu
-          onReportIncident={handleAddIncidentToggle}
-          onEmergencyCall={() => window.open("tel:10111")}
-          onShareLocation={() => {
-            if (latitude && longitude) {
-              navigator.share?.({
-                title: "My Location",
-                url: `https://www.google.com/maps?q=${latitude},${longitude}`,
-              }).catch(() => {});
-            }
-          }}
-          onToggleWatchers={() => toast.info("Watchers feature coming soon")}
-        />
+            <MapLegend />
+
+            {/* SECOND ROW: Online users (left) · Ghost mode (right) */}
+            <UserLocationsList
+              locations={userLocations}
+              currentUserLocation={latitude && longitude ? { lat: latitude, lng: longitude } : undefined}
+              onUserSelect={handleUserSelect}
+            />
+
+            <div className="fixed top-[calc(var(--map-top-row)+44px+8px)] right-[var(--map-inset)] z-[var(--z-map-controls)] flex flex-col items-end gap-2">
+              <GhostModeToggle isGhost={ghostMode} onChange={handleGhostToggle} />
+              <SpeedCompass heading={heading} speed={speed} />
+            </div>
+
+            {/* Contextual feedback */}
+            {latitude && longitude && !ghostMode && (
+              <LiveLocationLabel
+                latitude={latitude}
+                longitude={longitude}
+                isMoving={speed > 0.5}
+                speed={speed}
+              />
+            )}
+
+            {/* Near You Alert Strip */}
+            <AnimatePresence>
+              {showNearbyStrip && nearbyAlert && (
+                <div className="fixed top-[calc(var(--map-top-row)+100px)] left-[var(--map-inset)] right-[var(--map-inset)] z-[var(--z-map-critical)]">
+                  <NearYouStrip
+                    alert={nearbyAlert}
+                    isHighPriority={isHighPriority}
+                    onDismiss={() => dismissAlert(nearbyAlert.id)}
+                    onViewOnMap={handleViewNearbyOnMap}
+                  />
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* Right-side map controls */}
+            <MapControls
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              onRecenter={handleRecenter}
+              onToggleLayers={() => setHeatmapEnabled(!heatmapEnabled)}
+              layersActive={heatmapEnabled}
+            />
+
+            {/* Quick Actions FAB */}
+            <QuickActionsMenu
+              onReportIncident={handleAddIncidentToggle}
+              onEmergencyCall={() => window.open("tel:10111")}
+              onShareLocation={() => {
+                if (latitude && longitude) {
+                  navigator.share?.({
+                    title: "My Location",
+                    url: `https://www.google.com/maps?q=${latitude},${longitude}`,
+                  }).catch(() => {});
+                }
+              }}
+              onToggleWatchers={() => toast.info("Watchers feature coming soon")}
+            />
+          </>
+        )}
 
         {/* Crosshair for pin placement */}
         <CrosshairIndicator visible={showAddPin && !selectedLocation} />
