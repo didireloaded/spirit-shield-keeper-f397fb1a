@@ -52,7 +52,7 @@ export function LiveLocationLabel({
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap)+44px+var(--map-element-gap))] left-1/2 -translate-x-1/2 z-[var(--z-map-feedback)] max-w-[260px] w-auto"
+      className="fixed top-[calc(var(--map-top-row)+44px+12px)] left-1/2 -translate-x-1/2 z-[var(--z-map-feedback)] max-w-[260px] w-auto"
     >
       <div className="bg-background/90 backdrop-blur-md rounded-full border border-border/50 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] overflow-hidden">
         <div className="p-3 flex items-center gap-3">

@@ -32,14 +32,30 @@ export function UserAvatarMarkers({
   const onUserClickRef = useRef(onUserClick);
   onUserClickRef.current = onUserClick;
 
+  // Cleanup only on unmount or map change
+  useEffect(() => {
+    return () => {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current.clear();
+    };
+  }, [map]);
+
+  // Sync markers when locations change
   useEffect(() => {
     if (!map) return;
 
     const currentMarkers = markersRef.current;
 
+    // Build set of current location user IDs (excluding self)
+    const activeIds = new Set(
+      locations
+        .filter((loc) => loc.user_id !== currentUserId)
+        .map((loc) => loc.user_id)
+    );
+
     // Remove markers no longer present
     currentMarkers.forEach((marker, userId) => {
-      if (!locations.find((loc) => loc.user_id === userId)) {
+      if (!activeIds.has(userId)) {
         marker.remove();
         currentMarkers.delete(userId);
       }
@@ -47,70 +63,64 @@ export function UserAvatarMarkers({
 
     // Add/update
     locations.forEach((location) => {
-      // Skip current user
       if (location.user_id === currentUserId) return;
 
-      let marker = currentMarkers.get(location.user_id);
+      const existing = currentMarkers.get(location.user_id);
 
-      if (!marker) {
-        const el = document.createElement("div");
-        el.className = "user-avatar-marker";
-        el.style.cursor = "pointer";
-        el.style.transition = "transform 0.5s ease-out";
-
-        const avatarUrl = location.profile?.avatar_url || DEFAULT_AVATAR;
-        const isMoving = location.is_moving;
-
-        el.innerHTML = `
-          <div class="relative">
-            <div class="relative w-10 h-10 rounded-full border-2 ${
-              isMoving ? "border-green-500" : "border-white"
-            } shadow-lg overflow-hidden bg-card">
-              <img src="${avatarUrl}" alt="${location.profile?.full_name || "User"}"
-                class="w-full h-full object-cover"
-                onerror="this.src='${DEFAULT_AVATAR}'" />
-            </div>
-            <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
-              isMoving ? "bg-green-500" : "bg-blue-500"
-            }"></div>
-          </div>
-        `;
-
-        el.addEventListener("click", () => {
-          onUserClickRef.current?.(location);
-        });
-
-        const popup = new mapboxgl.Popup({
-          offset: 25,
-          closeButton: false,
-          className: "user-location-popup",
-        }).setHTML(`
-          <div class="p-2 text-sm">
-            <p class="font-semibold">${location.profile?.full_name || "User"}</p>
-            <p class="text-xs opacity-70">${location.location_name || "Moving..."}</p>
-            <p class="text-xs opacity-50 mt-1">
-              ${location.updated_at ? formatDistanceToNow(new Date(location.updated_at), { addSuffix: true }) : ""}
-            </p>
-            ${location.is_moving ? '<p class="text-xs mt-1" style="color:#22c55e">🏃 Moving</p>' : ""}
-          </div>
-        `);
-
-        marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
-          .setLngLat([location.longitude, location.latitude])
-          .setPopup(popup)
-          .addTo(map);
-
-        currentMarkers.set(location.user_id, marker);
-      } else {
-        // Smooth position update
-        marker.setLngLat([location.longitude, location.latitude]);
+      if (existing) {
+        // Smooth position update only — no DOM rebuild
+        existing.setLngLat([location.longitude, location.latitude]);
+        return;
       }
-    });
 
-    return () => {
-      currentMarkers.forEach((marker) => marker.remove());
-      currentMarkers.clear();
-    };
+      const el = document.createElement("div");
+      el.className = "user-avatar-marker";
+      el.style.cursor = "pointer";
+
+      const avatarUrl = location.profile?.avatar_url || DEFAULT_AVATAR;
+      const isMoving = location.is_moving;
+
+      el.innerHTML = `
+        <div class="relative">
+          <div class="relative w-10 h-10 rounded-full border-2 ${
+            isMoving ? "border-green-500" : "border-white"
+          } shadow-lg overflow-hidden bg-card">
+            <img src="${avatarUrl}" alt="${location.profile?.full_name || "User"}"
+              class="w-full h-full object-cover"
+              onerror="this.src='${DEFAULT_AVATAR}'" />
+          </div>
+          <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
+            isMoving ? "bg-green-500" : "bg-blue-500"
+          }"></div>
+        </div>
+      `;
+
+      el.addEventListener("click", () => {
+        onUserClickRef.current?.(location);
+      });
+
+      const popup = new mapboxgl.Popup({
+        offset: 25,
+        closeButton: false,
+        className: "user-location-popup",
+      }).setHTML(`
+        <div class="p-2 text-sm">
+          <p class="font-semibold">${location.profile?.full_name || "User"}</p>
+          <p class="text-xs opacity-70">${location.location_name || "Moving..."}</p>
+          <p class="text-xs opacity-50 mt-1">
+            ${location.updated_at ? formatDistanceToNow(new Date(location.updated_at), { addSuffix: true }) : ""}
+          </p>
+          ${location.is_moving ? '<p class="text-xs mt-1" style="color:#22c55e">🏃 Moving</p>' : ""}
+        </div>
+      `);
+
+      const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+        .setLngLat([location.longitude, location.latitude])
+        .setPopup(popup)
+        .addTo(map);
+
+      currentMarkers.set(location.user_id, marker);
+    });
   }, [map, locations, currentUserId]);
 
   return null;

@@ -320,8 +320,9 @@ const Map = () => {
           onUserSelect={handleUserSelect}
         />
 
-        <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap))] right-[var(--map-inset)] z-[var(--z-map-controls)]">
+        <div className="fixed top-[calc(var(--map-top-row)+44px+8px)] right-[var(--map-inset)] z-[var(--z-map-controls)] flex flex-col items-end gap-2">
           <GhostModeToggle isGhost={ghostMode} onChange={handleGhostToggle} />
+          <SpeedCompass heading={heading} speed={speed} />
         </div>
 
         {/* ═══ CONTEXTUAL FEEDBACK (auto-dismiss) ═══ */}
@@ -334,13 +335,10 @@ const Map = () => {
           />
         )}
 
-        {/* Speed & Compass — only shows when moving */}
-        <SpeedCompass heading={heading} speed={speed} />
-
         {/* ═══ NEAR YOU ALERT STRIP ═══ */}
         <AnimatePresence>
           {showNearbyStrip && nearbyAlert && (
-            <div className="fixed top-[calc(var(--map-top-row)+44px+var(--map-element-gap)+44px+var(--map-element-gap))] left-[var(--map-inset)] right-[var(--map-inset)] z-[var(--z-map-critical)]">
+            <div className="fixed top-[calc(var(--map-top-row)+100px)] left-[var(--map-inset)] right-[var(--map-inset)] z-[var(--z-map-critical)]">
               <NearYouStrip
                 alert={nearbyAlert}
                 isHighPriority={isHighPriority}
