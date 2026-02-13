@@ -12,6 +12,8 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { AnimatePresence } from "framer-motion";
+import { useIncidentPriority, useCalmState } from "@/hooks/useIncidentPriority";
+import { CalmBanner } from "@/components/map/CalmBanner";
 import { useSearchParams } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import MapboxMap from "@/components/MapboxMap";
@@ -72,6 +74,7 @@ const Map = () => {
   const [heading, setHeading] = useState(0);
   const [speed, setSpeed] = useState(0);
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
+  const mapLoadedRef = useRef(false);
   const hasNavigatedToParams = useRef(false);
 
   // Auth & Location
@@ -136,6 +139,21 @@ const Map = () => {
     alerts: allAlerts, radiusMeters: 500,
   });
 
+  // Incident priority & calm state
+  const userLocationObj = useMemo(
+    () => (latitude && longitude ? { lat: latitude, lng: longitude } : null),
+    [latitude, longitude]
+  );
+
+  const { focusedIncident, focusedScore, isNight } = useIncidentPriority({
+    mapRef: mapInstanceRef as any,
+    mapLoadedRef,
+    incidents: allAlerts,
+    userLocation: userLocationObj,
+  });
+
+  const isCalm = useCalmState(allAlerts, userLocationObj);
+
   // Trigger audio/vibration for high-priority nearby alerts
   useEffect(() => {
     if (nearbyAlert && isHighPriority) {
@@ -169,6 +187,7 @@ const Map = () => {
   // CRITICAL: Stable callbacks
   const handleMapLoad = useCallback((map: mapboxgl.Map) => {
     mapInstanceRef.current = map;
+    mapLoadedRef.current = true;
     setIdleRef.current();
   }, []);
 
@@ -335,7 +354,19 @@ const Map = () => {
             {/* 3️⃣ REPORT FAB: Above bottom sheet, bottom-right */}
             <MobileReportFab onPress={handleAddIncidentToggle} />
 
-            {/* 4️⃣ NEAR YOU ALERT (Panic only on mobile — no banners otherwise) */}
+            {/* 4️⃣ CALM BANNER (mobile) — only when no nearby threats */}
+            <AnimatePresence>
+              {isCalm && !showAddPin && selectionMode === "none" && (
+                <div
+                  className="fixed left-1/2 -translate-x-1/2 z-[var(--z-map-feedback)]"
+                  style={{ top: "calc(env(safe-area-inset-top, 0px) + 64px)" }}
+                >
+                  <CalmBanner />
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* 5️⃣ NEAR YOU ALERT (Panic only on mobile — no banners otherwise) */}
             <AnimatePresence>
               {showNearbyStrip && nearbyAlert && isHighPriority && (
                 <div
@@ -390,6 +421,15 @@ const Map = () => {
                 speed={speed}
               />
             )}
+
+            {/* Calm Banner (desktop) */}
+            <AnimatePresence>
+              {isCalm && !showAddPin && selectionMode === "none" && (
+                <div className="fixed top-[calc(var(--map-top-row)+100px)] left-1/2 -translate-x-1/2 z-[var(--z-map-feedback)]">
+                  <CalmBanner />
+                </div>
+              )}
+            </AnimatePresence>
 
             {/* Near You Alert Strip */}
             <AnimatePresence>
