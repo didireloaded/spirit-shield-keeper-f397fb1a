@@ -502,3 +502,21 @@ img {
 .mapboxgl-popup.panic-popup .mapboxgl-popup-tip {
   display: none;
 }
+
+/* ── Dark Mode Refinements ── */
+.dark {
+  --background: 222 47% 8%;
+  --card: 222 47% 11%;
+  --muted: 217 33% 14%;
+  --foreground: 210 40% 98%;
+  --muted-foreground: 215 20% 70%;
+  --border: 217 33% 15%;
+  --primary: 217 91% 65%;
+  --destructive: 0 84% 65%;
+  --success: 142 76% 50%;
+  --warning: 38 92% 55%;
+}
+
+.dark .shadow-lg {
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 10px 10px -5px rgb(0 0 0 / 0.2);
+}
