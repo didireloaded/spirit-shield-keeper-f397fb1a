@@ -763,6 +763,53 @@ export type Database = {
         }
         Relationships: []
       }
+      credibility_history: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          new_score: number
+          old_score: number
+          points_change: number
+          reason: string | null
+          reference_id: string | null
+          reference_type: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          new_score: number
+          old_score: number
+          points_change: number
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          new_score?: number
+          old_score?: number
+          points_change?: number
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credibility_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       escalation_requests: {
         Row: {
           authority_contact_id: string | null
@@ -1646,36 +1693,66 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          community_confirmations: number
           created_at: string | null
+          credibility_score: number
+          false_reports: number
           full_name: string | null
           ghost_mode: boolean | null
           id: string
+          is_restricted: boolean
+          last_report_at: string | null
           phone: string | null
           region: string | null
+          restriction_expires_at: string | null
+          restriction_reason: string | null
+          total_reports: number
           updated_at: string | null
           username: string | null
+          verified_reports: number
+          warnings_received: number
         }
         Insert: {
           avatar_url?: string | null
+          community_confirmations?: number
           created_at?: string | null
+          credibility_score?: number
+          false_reports?: number
           full_name?: string | null
           ghost_mode?: boolean | null
           id: string
+          is_restricted?: boolean
+          last_report_at?: string | null
           phone?: string | null
           region?: string | null
+          restriction_expires_at?: string | null
+          restriction_reason?: string | null
+          total_reports?: number
           updated_at?: string | null
           username?: string | null
+          verified_reports?: number
+          warnings_received?: number
         }
         Update: {
           avatar_url?: string | null
+          community_confirmations?: number
           created_at?: string | null
+          credibility_score?: number
+          false_reports?: number
           full_name?: string | null
           ghost_mode?: boolean | null
           id?: string
+          is_restricted?: boolean
+          last_report_at?: string | null
           phone?: string | null
           region?: string | null
+          restriction_expires_at?: string | null
+          restriction_reason?: string | null
+          total_reports?: number
           updated_at?: string | null
           username?: string | null
+          verified_reports?: number
+          warnings_received?: number
         }
         Relationships: []
       }
@@ -1912,6 +1989,36 @@ export type Database = {
           earned_at?: string
           id?: string
           title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_activity_log: {
+        Row: {
+          activity_type: string
+          created_at: string
+          id: string
+          lat: number | null
+          lng: number | null
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          metadata?: Json | null
           user_id?: string
         }
         Relationships: []
@@ -2157,6 +2264,10 @@ export type Database = {
       }
     }
     Functions: {
+      check_incident_auto_verify: {
+        Args: { target_incident_id: string; target_incident_type?: string }
+        Returns: boolean
+      }
       check_rate_limit: {
         Args: {
           p_action_type: string
@@ -2170,6 +2281,14 @@ export type Database = {
       cleanup_old_incidents: { Args: never; Returns: number }
       cleanup_old_notifications: { Args: never; Returns: number }
       cleanup_rate_limits: { Args: never; Returns: number }
+      detect_spam_pattern: {
+        Args: { user_id_param: string }
+        Returns: {
+          confidence: number
+          is_spam: boolean
+          reason: string
+        }[]
+      }
       get_heatmap_data: {
         Args: {
           max_lat: number
@@ -2300,6 +2419,21 @@ export type Database = {
         Returns: {
           job: string
           records_cleaned: number
+        }[]
+      }
+      update_user_credibility: {
+        Args: {
+          action_param: string
+          points_change_param: number
+          reason_param?: string
+          reference_id_param?: string
+          reference_type_param?: string
+          user_id_param: string
+        }
+        Returns: {
+          new_score: number
+          was_banned: boolean
+          was_unbanned: boolean
         }[]
       }
     }
