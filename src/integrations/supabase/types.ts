@@ -1709,6 +1709,30 @@ export type Database = {
         }
         Relationships: []
       }
+      query_performance_log: {
+        Row: {
+          created_at: string
+          execution_time_ms: number
+          id: string
+          query_name: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          execution_time_ms: number
+          id?: string
+          query_name: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          execution_time_ms?: number
+          id?: string
+          query_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       safety_check_prompts: {
         Row: {
           auto_escalated: boolean | null
@@ -2120,6 +2144,17 @@ export type Database = {
         }
         Relationships: []
       }
+      query_performance_stats: {
+        Row: {
+          avg_time_ms: number | null
+          max_time_ms: number | null
+          min_time_ms: number | null
+          p95_time_ms: number | null
+          query_name: string | null
+          total_queries: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       check_rate_limit: {
@@ -2131,6 +2166,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      cleanup_expired_markers: { Args: never; Returns: number }
+      cleanup_old_incidents: { Args: never; Returns: number }
+      cleanup_old_notifications: { Args: never; Returns: number }
+      cleanup_rate_limits: { Args: never; Returns: number }
       get_heatmap_data: {
         Args: {
           max_lat: number
@@ -2144,6 +2183,123 @@ export type Database = {
           lat_bucket: number
           latest_at: string
           lng_bucket: number
+        }[]
+      }
+      get_incidents_in_bounds: {
+        Args: {
+          max_lat: number
+          max_lng: number
+          max_results?: number
+          min_lat: number
+          min_lng: number
+        }
+        Returns: {
+          created_at: string
+          credibility_status: string
+          description: string
+          incident_id: string
+          incident_type: string
+          lat: number
+          lng: number
+          place_name: string
+          status: string
+        }[]
+      }
+      get_markers_in_bounds: {
+        Args: {
+          max_lat: number
+          max_lng: number
+          max_results?: number
+          min_lat: number
+          min_lng: number
+        }
+        Returns: {
+          created_at: string
+          credibility_status: string
+          description: string
+          id: string
+          latitude: number
+          longitude: number
+          marker_type: string
+          status: string
+          user_id: string
+          verified_count: number
+        }[]
+      }
+      get_nearby_incident_reports: {
+        Args: {
+          max_results?: number
+          radius_km?: number
+          user_lat: number
+          user_lng: number
+        }
+        Returns: {
+          created_at: string
+          credibility_score: number
+          credibility_status: string
+          description: string
+          distance_km: number
+          incident_id: string
+          incident_type: string
+          lat: number
+          lng: number
+          place_name: string
+          reported_by: string
+          status: string
+        }[]
+      }
+      get_nearby_markers: {
+        Args: {
+          max_results?: number
+          radius_km?: number
+          user_lat: number
+          user_lng: number
+        }
+        Returns: {
+          created_at: string
+          credibility_score: number
+          credibility_status: string
+          description: string
+          distance_km: number
+          id: string
+          latitude: number
+          longitude: number
+          marker_type: string
+          status: string
+          user_id: string
+          verified_count: number
+        }[]
+      }
+      get_user_feed: {
+        Args: {
+          limit_results?: number
+          radius_km?: number
+          user_lat: number
+          user_lng: number
+        }
+        Returns: {
+          author_id: string
+          content: string
+          created_at: string
+          distance_km: number
+          item_id: string
+          item_type: string
+          title: string
+        }[]
+      }
+      log_query_performance: {
+        Args: {
+          execution_time_ms_param: number
+          query_name_param: string
+          user_id_param?: string
+        }
+        Returns: undefined
+      }
+      run_maintenance: {
+        Args: never
+        Returns: {
+          job: string
+          records_cleaned: number
         }[]
       }
     }
