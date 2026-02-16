@@ -1,14 +1,32 @@
 /**
  * Content Moderation System
  * Multi-layer: profanity filter, PII detection, spam detection
- * Namibian context-aware
+ * Namibian context-aware with server-side DB integration
  */
 
-// Flagged words that send content to review
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+// ── Client-side banned words for instant pre-check ──
+
+const BANNED_WORDS = [
+  'fuck', 'shit', 'cunt', 'bitch', 'asshole',
+  'poes', 'doos', 'naai',  // Afrikaans profanity
+  'kaffir', 'hotnot', 'coolie',  // Hate speech
+];
+
 const FLAGGED_WORDS = [
   'kill', 'murder', 'rape', 'assault', 'bomb', 'gun', 'weapon',
   'drugs', 'cocaine', 'heroin', 'meth',
 ];
+
+const SPAM_KEYWORDS = [
+  'click here', 'buy now', 'limited time', 'act now',
+  'free money', 'get rich', 'work from home',
+  'enlarge', 'weight loss', 'miracle',
+];
+
+// ── Types ──
 
 export interface ModerationResult {
   approved: boolean;
@@ -18,37 +36,42 @@ export interface ModerationResult {
   confidence: number;
 }
 
-/**
- * Layer 1: Text moderation — profanity and flagged words
- */
+// ── Layer 1: Text moderation — profanity and flagged words ──
+
 export function moderateText(content: string): ModerationResult {
   const lowerContent = content.toLowerCase();
 
-  // Check for flagged words — send to review
-  const foundFlaggedWords: string[] = [];
-  for (const word of FLAGGED_WORDS) {
-    if (lowerContent.includes(word.toLowerCase())) {
-      foundFlaggedWords.push(word);
-    }
-  }
-
-  if (foundFlaggedWords.length > 0) {
+  // Check for blocked words
+  const foundBlocked = BANNED_WORDS.filter(w => lowerContent.includes(w.toLowerCase()));
+  if (foundBlocked.length > 0) {
     return {
       approved: false,
-      action: 'flag',
-      reason: 'Contains potentially concerning content',
-      flaggedWords: foundFlaggedWords,
-      confidence: 0.7,
+      action: 'block',
+      reason: 'Content contains inappropriate language',
+      flaggedWords: foundBlocked,
+      confidence: 0.95,
     };
   }
 
-  // Check for masked profanity (f**k, sh1t, etc.)
+  // Check for masked profanity
   if (detectMaskedProfanity(content)) {
     return {
       approved: false,
       action: 'block',
       reason: 'Attempted to bypass content filter',
       confidence: 0.8,
+    };
+  }
+
+  // Check flagged words — send to review
+  const foundFlagged = FLAGGED_WORDS.filter(w => lowerContent.includes(w.toLowerCase()));
+  if (foundFlagged.length > 0) {
+    return {
+      approved: false,
+      action: 'flag',
+      reason: 'Contains potentially concerning content',
+      flaggedWords: foundFlagged,
+      confidence: 0.7,
     };
   }
 
@@ -61,13 +84,15 @@ function detectMaskedProfanity(content: string): boolean {
     /sh[\*i1!]{1,2}t/i,
     /b[\*i1!]{1,2}tch/i,
     /d[\*a@]{1,2}mn/i,
+    /f\s*u\s*c\s*k/i,
+    /s\s*h\s*i\s*t/i,
+    /[a@]ssh[o0]le/i,
   ];
   return patterns.some((pattern) => pattern.test(content));
 }
 
-/**
- * Layer 2: Personal Information Detection (Namibian context)
- */
+// ── Layer 2: Personal Information Detection (Namibian context) ──
+
 export function detectPersonalInfo(content: string): {
   hasPII: boolean;
   types: string[];
@@ -80,21 +105,21 @@ export function detectPersonalInfo(content: string): {
   const phoneRegex = /(\+264|0)\s?\d{2}\s?\d{3}\s?\d{4}/g;
   if (phoneRegex.test(content)) {
     types.push('phone_number');
-    redacted = redacted.replace(phoneRegex, '[PHONE REMOVED]');
+    redacted = redacted.replace(/(\+264|0)\s?\d{2}\s?\d{3}\s?\d{4}/g, '[PHONE REMOVED]');
   }
 
   // Email addresses
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   if (emailRegex.test(content)) {
     types.push('email');
-    redacted = redacted.replace(emailRegex, '[EMAIL REMOVED]');
+    redacted = redacted.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL REMOVED]');
   }
 
   // Namibian ID numbers (11 digits)
   const idRegex = /\b\d{11}\b/g;
   if (idRegex.test(content)) {
     types.push('id_number');
-    redacted = redacted.replace(idRegex, '[ID REMOVED]');
+    redacted = redacted.replace(/\b\d{11}\b/g, '[ID REMOVED]');
   }
 
   // Physical addresses
@@ -107,18 +132,16 @@ export function detectPersonalInfo(content: string): {
   }
 
   // URLs
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  if (urlRegex.test(content)) {
+  if (/(https?:\/\/[^\s]+)/g.test(content)) {
     types.push('external_link');
-    redacted = redacted.replace(urlRegex, '[LINK REMOVED]');
+    redacted = redacted.replace(/(https?:\/\/[^\s]+)/g, '[LINK REMOVED]');
   }
 
   return { hasPII: types.length > 0, types, redacted };
 }
 
-/**
- * Layer 3: Spam Detection
- */
+// ── Layer 3: Spam Detection ──
+
 export function detectSpamPatterns(content: string): {
   isSpam: boolean;
   patterns: string[];
@@ -127,9 +150,11 @@ export function detectSpamPatterns(content: string): {
   const patterns: string[] = [];
 
   // All caps (>70%)
-  const capsRatio = (content.match(/[A-Z]/g) || []).length / content.length;
-  if (capsRatio > 0.7 && content.length > 10) {
-    patterns.push('excessive_caps');
+  if (content.length > 10) {
+    const capsRatio = (content.match(/[A-Z]/g) || []).length / content.length;
+    if (capsRatio > 0.7) {
+      patterns.push('excessive_caps');
+    }
   }
 
   // Excessive punctuation
@@ -149,17 +174,17 @@ export function detectSpamPatterns(content: string): {
     patterns.push('excessive_emojis');
   }
 
-  // Marketing keywords
-  const marketingKeywords = [
-    'click here', 'buy now', 'limited time', 'act fast',
-    'free money', 'easy cash', 'make money fast', 'work from home',
-    'winner', 'congratulations', 'you won', 'claim now',
-  ];
-  const hasMarketing = marketingKeywords.some((kw) =>
-    content.toLowerCase().includes(kw)
-  );
-  if (hasMarketing) {
-    patterns.push('marketing_language');
+  // Marketing/spam keywords
+  const lowerContent = content.toLowerCase();
+  const hasSpam = SPAM_KEYWORDS.some(kw => lowerContent.includes(kw));
+  if (hasSpam) {
+    patterns.push('spam_keywords');
+  }
+
+  // Multiple links
+  const linkCount = (content.match(/(https?:\/\/|www\.)[^\s]+/gi) || []).length;
+  if (linkCount > 2) {
+    patterns.push('multiple_links');
   }
 
   const isSpam = patterns.length >= 2;
@@ -168,9 +193,8 @@ export function detectSpamPatterns(content: string): {
   return { isSpam, patterns, confidence };
 }
 
-/**
- * Combined content check — use before submitting posts/comments/incidents
- */
+// ── Combined content check — use before submitting posts/comments/incidents ──
+
 export function checkContent(
   content: string,
   contentType: 'post' | 'comment' | 'incident'
@@ -179,46 +203,131 @@ export function checkContent(
   action: 'allow' | 'flag' | 'block';
   reason?: string;
   redacted?: string;
+  requiresReview: boolean;
 } {
-  // 1. Check profanity
+  // 1. Basic validation
+  if (!content || content.trim().length === 0) {
+    return { approved: false, action: 'block', reason: 'Content cannot be empty', requiresReview: false };
+  }
+  if (content.length > 5000) {
+    return { approved: false, action: 'block', reason: 'Content too long (max 5000 characters)', requiresReview: false };
+  }
+
+  // 2. Check profanity
   const profanityCheck = moderateText(content);
   if (profanityCheck.action === 'block') {
-    return {
-      approved: false,
-      action: 'block',
-      reason: 'Your message contains inappropriate content.',
-    };
+    return { approved: false, action: 'block', reason: profanityCheck.reason, requiresReview: false };
   }
 
-  // 2. Check for personal info
+  // 3. Check for personal info
   const piiCheck = detectPersonalInfo(content);
   if (piiCheck.hasPII) {
+    if (piiCheck.types.includes('external_link')) {
+      return {
+        approved: false,
+        action: 'flag',
+        reason: 'External links are not allowed. Please remove URLs.',
+        redacted: piiCheck.redacted,
+        requiresReview: true,
+      };
+    }
     return {
-      approved: false,
-      action: 'flag',
-      reason: 'Your message contains personal information that should be removed for privacy.',
+      approved: true,
+      action: 'allow',
+      reason: 'Personal information was auto-redacted for privacy.',
       redacted: piiCheck.redacted,
+      requiresReview: piiCheck.types.length > 2,
     };
   }
 
-  // 3. Check for spam
+  // 4. Check for spam
   const spamCheck = detectSpamPatterns(content);
   if (spamCheck.isSpam) {
-    return {
-      approved: false,
-      action: 'block',
-      reason: 'Your message appears to be spam.',
-    };
+    return { approved: false, action: 'block', reason: 'Your message appears to be spam.', requiresReview: false };
   }
 
-  // 4. Flagged words go to review
+  // 5. Flagged words go to review
   if (profanityCheck.action === 'flag') {
     return {
-      approved: false,
+      approved: true,
       action: 'flag',
       reason: 'Your post is being reviewed by moderators.',
+      requiresReview: true,
     };
   }
 
-  return { approved: true, action: 'allow' };
+  return { approved: true, action: 'allow', requiresReview: false };
+}
+
+// ── Server-side moderation (calls DB function) ──
+
+export async function serverModerateText(
+  text: string,
+  userId: string
+): Promise<{
+  passed: boolean;
+  blockedWords: string[];
+  flaggedWords: string[];
+  containsPII: boolean;
+  issues: string[];
+}> {
+  const { data, error } = await supabase.rpc('moderate_text', {
+    text_param: text,
+    user_id_param: userId,
+  });
+
+  if (error) {
+    console.error('Server moderation error:', error);
+    // Fail closed — block if moderation fails
+    return {
+      passed: false,
+      blockedWords: [],
+      flaggedWords: [],
+      containsPII: false,
+      issues: ['moderation_error'],
+    };
+  }
+
+  const row = data?.[0];
+  return {
+    passed: row?.passed ?? false,
+    blockedWords: row?.blocked_words ?? [],
+    flaggedWords: row?.flagged_words ?? [],
+    containsPII: row?.contains_pii ?? false,
+    issues: row?.issues ?? [],
+  };
+}
+
+// ── Flag content for review ──
+
+export async function flagContent(
+  contentId: string,
+  contentType: 'incident' | 'post' | 'comment' | 'marker',
+  reason: string,
+  details?: string
+): Promise<{ success: boolean }> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false };
+
+  try {
+    const { error } = await supabase.from('content_flags').insert({
+      content_id: contentId,
+      content_type: contentType,
+      flagger_user_id: user.id,
+      flag_reason: reason,
+      flag_details: details,
+    });
+
+    if (error) throw error;
+
+    toast.success('Content flagged for review. Thank you for helping keep the community safe.');
+    return { success: true };
+  } catch (error: any) {
+    if (error?.code === '23505') {
+      toast.info('You have already flagged this content');
+    } else {
+      toast.error('Failed to flag content');
+    }
+    return { success: false };
+  }
 }
