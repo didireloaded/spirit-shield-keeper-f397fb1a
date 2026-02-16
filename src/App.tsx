@@ -31,6 +31,8 @@ import SafetyDashboard from "./pages/SafetyDashboard";
 import ActivityHistory from "./pages/ActivityHistory";
 import History from "./pages/History";
 import NotFound from "./pages/NotFound";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 // Configure React Query with production-ready defaults
 const queryClient = new QueryClient({
@@ -81,6 +83,8 @@ function AnimatedRoutes() {
           <Route path="/safety" element={<ProtectedRoute><SafetyDashboard /></ProtectedRoute>} />
           <Route path="/activity" element={<ProtectedRoute><ActivityHistory /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AnimatePresence>
