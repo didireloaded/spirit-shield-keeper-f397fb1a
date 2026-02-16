@@ -356,6 +356,33 @@ export type Database = {
           },
         ]
       }
+      banned_words: {
+        Row: {
+          action: string
+          category: string
+          created_at: string | null
+          id: string
+          severity: string
+          word: string
+        }
+        Insert: {
+          action: string
+          category: string
+          created_at?: string | null
+          id?: string
+          severity: string
+          word: string
+        }
+        Update: {
+          action?: string
+          category?: string
+          created_at?: string | null
+          id?: string
+          severity?: string
+          word?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           chat_room_id: string
@@ -715,6 +742,66 @@ export type Database = {
           thread_id?: string
         }
         Relationships: []
+      }
+      content_flags: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string | null
+          flag_details: string | null
+          flag_reason: string
+          flagger_user_id: string | null
+          id: string
+          moderator_action: string | null
+          moderator_id: string | null
+          moderator_notes: string | null
+          reviewed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string | null
+          flag_details?: string | null
+          flag_reason: string
+          flagger_user_id?: string | null
+          id?: string
+          moderator_action?: string | null
+          moderator_id?: string | null
+          moderator_notes?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string | null
+          flag_details?: string | null
+          flag_reason?: string
+          flagger_user_id?: string | null
+          id?: string
+          moderator_action?: string | null
+          moderator_id?: string | null
+          moderator_notes?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_flags_flagger_user_id_fkey"
+            columns: ["flagger_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_flags_moderator_id_fkey"
+            columns: ["moderator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversation_participants: {
         Row: {
@@ -1194,6 +1281,53 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moderation_queue: {
+        Row: {
+          assigned_to: string | null
+          auto_detected_issues: string[] | null
+          content_id: string
+          content_type: string
+          created_at: string | null
+          id: string
+          priority: string | null
+          reason: string
+          resolved_at: string | null
+          status: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          auto_detected_issues?: string[] | null
+          content_id: string
+          content_type: string
+          created_at?: string | null
+          id?: string
+          priority?: string | null
+          reason: string
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          auto_detected_issues?: string[] | null
+          content_id?: string
+          content_type?: string
+          created_at?: string | null
+          id?: string
+          priority?: string | null
+          reason?: string
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moderation_queue_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2211,6 +2345,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_warnings: {
+        Row: {
+          acknowledged: boolean | null
+          content_id: string | null
+          content_type: string | null
+          created_at: string | null
+          id: string
+          issued_by: string | null
+          reason: string
+          user_id: string
+          warning_type: string
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          content_id?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          id?: string
+          issued_by?: string | null
+          reason: string
+          user_id: string
+          warning_type: string
+        }
+        Update: {
+          acknowledged?: boolean | null
+          content_id?: string | null
+          content_type?: string | null
+          created_at?: string | null
+          id?: string
+          issued_by?: string | null
+          reason?: string
+          user_id?: string
+          warning_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_warnings_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_warnings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       watchers: {
         Row: {
           created_at: string | null
@@ -2406,6 +2591,16 @@ export type Database = {
           title: string
         }[]
       }
+      issue_warning: {
+        Args: {
+          content_id_param?: string
+          content_type_param?: string
+          reason_param: string
+          user_id_param: string
+          warning_type_param: string
+        }
+        Returns: string
+      }
       log_query_performance: {
         Args: {
           execution_time_ms_param: number
@@ -2413,6 +2608,16 @@ export type Database = {
           user_id_param?: string
         }
         Returns: undefined
+      }
+      moderate_text: {
+        Args: { text_param: string; user_id_param: string }
+        Returns: {
+          blocked_words: string[]
+          contains_pii: boolean
+          flagged_words: string[]
+          issues: string[]
+          passed: boolean
+        }[]
       }
       run_maintenance: {
         Args: never
