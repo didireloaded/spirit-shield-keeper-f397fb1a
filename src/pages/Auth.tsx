@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Shield, Mail, Lock, User, Eye, EyeOff, AlertCircle, Camera, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ConsentDialog } from "@/components/legal/ConsentDialog";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Please enter a valid email address");
@@ -19,6 +20,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [showConsent, setShowConsent] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   
   const { signIn, signUp, user } = useAuth();
@@ -86,12 +88,15 @@ const Auth = () => {
           } else {
             setError(error.message);
           }
-        } else if (avatarFile) {
-          // After successful signup, get the user and upload avatar
-          const { data: { user: newUser } } = await supabase.auth.getUser();
-          if (newUser) {
-            await uploadAvatar(newUser.id);
+        } else {
+          // Successful signup — show consent dialog
+          if (avatarFile) {
+            const { data: { user: newUser } } = await supabase.auth.getUser();
+            if (newUser) {
+              await uploadAvatar(newUser.id);
+            }
           }
+          setShowConsent(true);
         }
       }
     } catch (err) {
@@ -265,9 +270,21 @@ const Auth = () => {
       {/* Footer */}
       <div className="p-6 text-center">
         <p className="text-xs text-muted-foreground">
-          By continuing, you agree to Guardian's Terms of Service and Privacy Policy
+          By continuing, you agree to Guardian's{' '}
+          <a href="/terms" className="text-primary hover:underline">Terms of Service</a> and{' '}
+          <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>
         </p>
       </div>
+
+      {/* Consent Dialog for new signups */}
+      <ConsentDialog
+        open={showConsent}
+        onAccept={() => {
+          localStorage.setItem('termsAccepted', 'true');
+          localStorage.setItem('termsAcceptedDate', new Date().toISOString());
+          setShowConsent(false);
+        }}
+      />
     </div>
   );
 };
