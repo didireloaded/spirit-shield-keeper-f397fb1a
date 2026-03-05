@@ -24,6 +24,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
   EmailAlreadyExists: 'An account with this email already exists.',
   WeakPassword: 'Password must be at least 8 characters long.',
 
+  // Supabase / Postgres errors
+  PGRST116: 'Could not find that item. It may have been deleted.',
+  '23505': 'This action has already been done.',
+  '42501': 'You do not have permission to do that.',
+  '23503': 'This action references data that no longer exists.',
+
   // Generic
   Unknown: 'Something went wrong. Please try again or contact support.',
 };
