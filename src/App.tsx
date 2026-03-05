@@ -20,7 +20,6 @@ import { TIME } from "@/core/config/constants";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
-// Lazy-loaded pages for better initial load performance
 const Index = lazy(() => import("./pages/Index"));
 const Map = lazy(() => import("./pages/Map"));
 const Alerts = lazy(() => import("./pages/Alerts"));
@@ -38,7 +37,6 @@ const History = lazy(() => import("./pages/History"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 
-// Configure React Query with production-ready defaults
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -58,11 +56,7 @@ function NotificationOnboardingWrapper() {
 
 function AnimatedRoutes() {
   const location = useLocation();
-
-  // Central notification dispatcher — listens to ALL streams, applies rules, dispatches
   useNotificationDispatcher();
-
-  // Service worker tap → in-app navigation
   useNotificationNavigation();
 
   return (
@@ -100,20 +94,20 @@ function AnimatedRoutes() {
 
 const App = () => (
   <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <EmergencyProvider>
-        <TooltipProvider>
-          <NetworkStatus />
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AnimatedRoutes />
-        </BrowserRouter>
-        </TooltipProvider>
-      </EmergencyProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <EmergencyProvider>
+            <TooltipProvider>
+              <NetworkStatus />
+              <Toaster />
+              <Sonner />
+              <AnimatedRoutes />
+            </TooltipProvider>
+          </EmergencyProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
   </ErrorBoundary>
 );
 

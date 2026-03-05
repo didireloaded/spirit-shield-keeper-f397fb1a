@@ -1,62 +1,59 @@
-# Project Title
-Spirit Shield Keeper
+# Spirit Shield Keeper
 
-## High-level Architecture
-This project consists of a client-server architecture. The client communicates with the server over HTTP, using RESTful principles for data exchange. The server handles business logic and data management.
+Real-time community-driven emergency safety app for Namibia. Report incidents, receive alerts, and stay connected with your neighborhood.
 
-## Workflows
-1. **User Registration**: Users can create an account.
-2. **Login**: Users can log in to access their accounts.
-3. **Dashboard**: Once logged in, users can view their dashboard with key information.
-4. **Data Management**: Users can add, modify, or delete data related to their records.
-5. **Reporting**: Generate reports based on user data.
+## Features
 
-## Detailed Setup Instructions
-To set up the project locally, follow these steps:
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/didireloaded/spirit-shield-keeper-f397fb1a.git
-   cd spirit-shield-keeper-f397fb1a
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Create a `.env` file based on `.env.example` and fill in the required environment variables.
-4. Start the server:
-   ```bash
-   npm start
-   ```
-5. The server will be running on `http://localhost:3000`.
+- **Panic Alerts** — One-tap emergency broadcasting with live audio recording and GPS tracking
+- **Amber Alerts** — Missing person reports with photo upload, outfit description, and vehicle details
+- **Live Map** — Real-time incident map powered by Mapbox with heatmap layers and incident markers
+- **Community Feed** — Neighbourhood posts with incident keyword detection
+- **Look After Me** — Trip tracking with ETA monitoring and auto-escalation
+- **Watchers** — Trusted contacts who receive your emergency alerts
+- **Direct Messages** — Private chat between community members
+- **Safety Dashboard** — Personal safety insights, credibility scores, and achievements
+- **Push Notifications** — Real-time alerts via service worker
 
-## Contribution Guidelines
-We welcome contributions! Please follow these steps:
-1. Fork the repository.
-2. Create a new branch for your feature or fix:
-   ```bash
-   git checkout -b feature/my-feature
-   ```
-3. Commit your changes:
-   ```bash
-   git commit -m 'Add some feature'
-   ```
-4. Push to the branch:
-   ```bash
-   git push origin feature/my-feature
-   ```
-5. Open a pull request.
+## Tech Stack
 
-## Deployment Steps
-1. Set up the production environment.
-2. Pull the latest changes from the `main` branch.
-3. Run the build command:
-   ```bash
-   npm run build
-   ```
-4. Restart the server with the new changes.
-   ```bash
-   pm2 restart app
-   ```
+- **Frontend:** React 18, TypeScript, Tailwind CSS, Framer Motion, shadcn/ui
+- **Backend:** Supabase (Auth, Database, Storage, Edge Functions, Realtime)
+- **Maps:** Mapbox GL JS
+- **State:** TanStack React Query
+- **Build:** Vite
+
+## Local Setup
+
+```bash
+git clone <repo-url>
+cd spirit-shield-keeper
+npm install
+cp .env.example .env
+# Fill in your Supabase credentials in .env
+npm run dev
+```
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Type-check + production build |
+| `npm run preview` | Preview production build |
+| `npm run lint` | ESLint (fails on warnings) |
+
+## Deployment
+
+### Netlify
+The `public/_redirects` file handles SPA routing automatically.
+
+### Vercel
+The `vercel.json` file handles SPA routing and asset caching.
+
+## Architecture
+
+See `docs/ARCHITECTURE.md` for detailed architecture documentation.
 
 ## License
-This project is licensed under the MIT License. See the LICENSE file for details.
+
+MIT

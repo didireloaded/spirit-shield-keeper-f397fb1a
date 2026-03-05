@@ -12,45 +12,53 @@ interface AlertCardProps {
   isNew?: boolean;
 }
 
-const alertStyles: Record<AlertType, { bg: string; icon: string; label: string }> = {
+const alertStyles: Record<AlertType, { bg: string; icon: string; stripe: string; label: string }> = {
   panic: {
-    bg: "bg-destructive/10 border-destructive/30",
-    icon: "bg-destructive text-destructive-foreground",
+    bg: "bg-destructive/5 border-border/50",
+    icon: "bg-destructive/15 text-destructive",
+    stripe: "bg-destructive",
     label: "Panic",
   },
   amber: {
-    bg: "bg-warning/10 border-warning/30",
-    icon: "bg-warning text-warning-foreground",
+    bg: "bg-warning/5 border-border/50",
+    icon: "bg-warning/15 text-warning",
+    stripe: "bg-warning",
     label: "Amber Alert",
   },
   robbery: {
-    bg: "bg-destructive/10 border-destructive/30",
-    icon: "bg-destructive text-destructive-foreground",
+    bg: "bg-destructive/5 border-border/50",
+    icon: "bg-destructive/15 text-destructive",
+    stripe: "bg-destructive",
     label: "Robbery",
   },
   suspicious: {
-    bg: "bg-warning/10 border-warning/30",
-    icon: "bg-warning text-warning-foreground",
+    bg: "bg-warning/5 border-border/50",
+    icon: "bg-warning/15 text-warning",
+    stripe: "bg-warning",
     label: "Suspicious",
   },
   assault: {
-    bg: "bg-destructive/10 border-destructive/30",
-    icon: "bg-destructive text-destructive-foreground",
+    bg: "bg-destructive/5 border-border/50",
+    icon: "bg-destructive/15 text-destructive",
+    stripe: "bg-destructive",
     label: "Assault",
   },
   accident: {
-    bg: "bg-warning/10 border-warning/30",
-    icon: "bg-warning text-warning-foreground",
+    bg: "bg-orange-500/5 border-border/50",
+    icon: "bg-orange-500/15 text-orange-400",
+    stripe: "bg-orange-500",
     label: "Accident",
   },
   other: {
-    bg: "bg-secondary border-border",
+    bg: "bg-secondary border-border/50",
     icon: "bg-secondary text-secondary-foreground",
+    stripe: "bg-muted-foreground",
     label: "Other",
   },
   safe: {
-    bg: "bg-success/10 border-success/30",
-    icon: "bg-success text-success-foreground",
+    bg: "bg-success/5 border-border/50",
+    icon: "bg-success/15 text-success",
+    stripe: "bg-success",
     label: "All Clear",
   },
 };
@@ -70,33 +78,31 @@ export const AlertCard = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ x: 4 }}
-      className={`
-        relative p-4 rounded-xl border cursor-pointer
-        transition-all duration-200
-        ${style.bg}
-      `}
+      className={`relative overflow-hidden rounded-2xl border cursor-pointer transition-all duration-200 ${style.bg}`}
     >
-      {isNew && (
-        <span className="absolute top-3 right-3 px-2 py-0.5 text-[10px] font-bold uppercase bg-panic text-destructive-foreground rounded-full">
-          Active
-        </span>
-      )}
+      {/* Left accent stripe */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${style.stripe}`} />
 
-      <div className="flex items-start gap-3">
-        <div className={`p-2 rounded-lg ${style.icon}`}>
+      <div className="flex items-start gap-3 p-4 pl-5">
+        <div className={`p-2 rounded-xl ${style.icon}`}>
           {type === "amber" ? <Search className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
               {style.label}
             </span>
+            {isNew && (
+              <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-panic text-destructive-foreground rounded-full">
+                Active
+              </span>
+            )}
           </div>
 
-          <h3 className="font-semibold text-foreground text-sm line-clamp-2">{title}</h3>
+          <h3 className="font-semibold text-foreground text-sm font-display line-clamp-2">{title}</h3>
 
-          <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-3 mt-2 text-muted-foreground">
             <div className="flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5" />
               <span className="truncate text-xs">{location}</span>
