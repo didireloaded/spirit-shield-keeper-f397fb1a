@@ -6,16 +6,19 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { WifiOff, Wifi } from "lucide-react";
+import { processOfflineQueue } from "@/lib/offlineQueue";
 
 export const NetworkStatus = () => {
   const [isOnline, setIsOnline] = useState(true);
   const [showReconnected, setShowReconnected] = useState(false);
 
   useEffect(() => {
-    const handleOnline = () => {
+    const handleOnline = async () => {
       setIsOnline(true);
       setShowReconnected(true);
       setTimeout(() => setShowReconnected(false), 3000);
+      // Process any queued offline actions
+      await processOfflineQueue();
     };
 
     const handleOffline = () => {

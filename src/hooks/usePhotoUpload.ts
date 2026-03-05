@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { compressImage, validateImage } from "@/lib/imageUtils";
+import { trackPerformance } from "@/lib/monitoring";
+import { toast } from "sonner";
 
 interface UsePhotoUploadOptions {
   bucket: "outfit-photos" | "post-images" | "profile-photos";
@@ -20,21 +23,37 @@ export const usePhotoUpload = ({ bucket, onSuccess, onError }: UsePhotoUploadOpt
       return null;
     }
 
+    // Validate first
+    const validation = validateImage(file);
+    if (!validation.valid) {
+      toast.error(validation.reason || "Invalid image");
+      onError?.(new Error(validation.reason));
+      return null;
+    }
+
     setUploading(true);
 
     try {
+      // Compress image before upload
+      const compressed = await trackPerformance("image-compression", () =>
+        compressImage(file)
+      );
+
+      console.log(
+        `Compressed: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`
+      );
+
       // Create preview
-      const preview = URL.createObjectURL(file);
+      const preview = URL.createObjectURL(compressed);
       setPreviewUrl(preview);
 
       // Generate unique filename
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}/${Date.now()}.jpeg`;
 
-      // Upload to Supabase Storage
+      // Upload compressed image
       const { error: uploadError } = await supabase.storage
         .from(bucket)
-        .upload(fileName, file, {
+        .upload(fileName, compressed, {
           cacheControl: "3600",
           upsert: false,
         });

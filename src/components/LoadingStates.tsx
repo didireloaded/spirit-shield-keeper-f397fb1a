@@ -4,6 +4,8 @@
  */
 
 import { motion } from "framer-motion";
+import { MapPin } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 /** Skeleton with shimmer effect */
@@ -59,6 +61,47 @@ export function ProgressBar({ progress }: { progress: number }) {
         animate={{ width: `${progress}%` }}
         transition={{ duration: 0.3 }}
       />
+    </div>
+  );
+}
+
+/** Full page skeleton */
+export function PageSkeleton() {
+  return (
+    <div className="min-h-screen bg-background pb-24">
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+        <Skeleton className="h-12 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+/** Card skeleton */
+export function CardSkeleton() {
+  return (
+    <div className="bg-card rounded-xl p-4 space-y-3 border border-border">
+      <div className="flex gap-3">
+        <Skeleton className="w-12 h-12 rounded-full" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-3 w-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Map loading skeleton */
+export function MapSkeleton() {
+  return (
+    <div className="w-full h-full bg-muted animate-pulse flex items-center justify-center">
+      <div className="text-center">
+        <MapPin className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Loading map...</p>
+      </div>
     </div>
   );
 }
