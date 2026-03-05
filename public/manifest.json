@@ -1,18 +1,33 @@
 {
-  "name": "The Guardian - Community Safety",
-  "short_name": "Guardian",
+  "name": "Spirit Shield — Community Safety",
+  "short_name": "Spirit Shield",
   "description": "Real-time community-driven emergency safety app for Namibia",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0f",
   "theme_color": "#1a365d",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
+  "lang": "en",
   "scope": "/",
   "icons": [
     {
       "src": "/favicon.ico",
       "sizes": "64x64",
       "type": "image/x-icon"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Panic Alert",
+      "short_name": "Panic",
+      "url": "/home",
+      "icons": []
+    },
+    {
+      "name": "Live Map",
+      "short_name": "Map",
+      "url": "/map",
+      "icons": []
     }
   ],
   "categories": ["safety", "social", "utilities"]

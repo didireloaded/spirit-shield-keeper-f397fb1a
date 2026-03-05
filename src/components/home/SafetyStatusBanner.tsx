@@ -1,8 +1,3 @@
-/**
- * Safety Status Banner
- * Real-time safety status strip showing active alerts in the area
- */
-
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, ShieldCheck, ChevronRight } from 'lucide-react';
@@ -30,16 +25,8 @@ export function SafetyStatusBanner() {
 
     const channel = supabase
       .channel('safety-status-banner')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'markers',
-      }, () => fetchSafetyStatus())
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'alerts',
-      }, () => fetchSafetyStatus())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'markers' }, () => fetchSafetyStatus())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => fetchSafetyStatus())
       .subscribe();
 
     return () => { channel.unsubscribe(); };
@@ -73,9 +60,9 @@ export function SafetyStatusBanner() {
   };
 
   const colorScheme = {
-    safe: { bg: 'bg-success/10', border: 'border-success/30', text: 'text-success', icon: ShieldCheck },
-    caution: { bg: 'bg-warning/10', border: 'border-warning/30', text: 'text-warning', icon: AlertTriangle },
-    danger: { bg: 'bg-destructive/10', border: 'border-destructive/30', text: 'text-destructive', icon: AlertTriangle },
+    safe: { bg: 'bg-success/8', border: 'border-success/20', text: 'text-success', dotColor: 'bg-success', icon: ShieldCheck },
+    caution: { bg: 'bg-warning/8', border: 'border-warning/20', text: 'text-warning', dotColor: 'bg-warning', icon: AlertTriangle },
+    danger: { bg: 'bg-destructive/8', border: 'border-destructive/20', text: 'text-destructive', dotColor: 'bg-destructive', icon: AlertTriangle },
   };
 
   const scheme = colorScheme[status.level];
@@ -87,16 +74,21 @@ export function SafetyStatusBanner() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         onClick={() => navigate('/map')}
-        className={`w-full px-4 py-3 rounded-xl border ${scheme.bg} ${scheme.border} flex items-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-transform`}
+        className={`w-full px-4 py-3 rounded-2xl border ${scheme.bg} ${scheme.border} flex items-center gap-3 active:opacity-80 transition-opacity`}
       >
-        <Icon className={`w-5 h-5 flex-shrink-0 ${scheme.text}`} />
+        <div className={`w-9 h-9 rounded-xl ${scheme.bg} flex items-center justify-center`}>
+          <Icon className={`w-5 h-5 flex-shrink-0 ${scheme.text}`} />
+        </div>
         <div className="flex-1 text-left">
           <p className={`text-sm font-medium ${scheme.text}`}>{status.message}</p>
-          {status.nearbyIncidents > 0 && (
-            <p className="text-xs text-muted-foreground mt-0.5">Tap to view on map</p>
-          )}
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {status.nearbyIncidents > 0 ? 'Tap to view on map' : 'No incidents reported nearby'}
+          </p>
         </div>
-        <ChevronRight className={`w-4 h-4 ${scheme.text}`} />
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${scheme.dotColor} ${status.level !== 'safe' ? 'animate-pulse' : ''}`} />
+          <ChevronRight className={`w-4 h-4 ${scheme.text}`} />
+        </div>
       </motion.button>
     </AnimatePresence>
   );

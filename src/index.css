@@ -129,7 +129,12 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', 'DM Sans', ui-sans-serif, sans-serif;
   }
 
   /* Smooth scrolling */
